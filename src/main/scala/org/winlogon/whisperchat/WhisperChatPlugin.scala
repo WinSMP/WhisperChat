@@ -18,17 +18,16 @@ class WhisperChatPlugin extends JavaPlugin {
   override def onEnable(): Unit = {
     isFolia = checkFolia()
     getCommand("dm").setExecutor(new DMCommandExecutor(this))
-    getCommand("r").setExecutor(new RCommandExecutor(this))
+    getCommand("r").setExecutor(new ReplyCommandClass(this))
     Bukkit.getPluginManager.registerEvents(new ChatListener(this), this)
   }
 
   private def checkFolia(): Boolean = {
     try {
       Class.forName("io.papermc.paper.threadedregions.RegionizedServer")
-      classOf[Player].getMethod("getScheduler")
       true
     } catch {
-      case _: ClassNotFoundException | _: NoSuchMethodException => false
+      case _: ClassNotFoundException => false
     }
   }
 
@@ -42,68 +41,71 @@ class DMCommandExecutor(plugin: DMChatPlugin) extends CommandExecutor {
   private val lastSenders = plugin.getLastSenders
 
   override def onCommand(sender: CommandSender, command: Command, label: String, args: Array[String]): Boolean = {
-    sender match {
-      case player: Player =>
-        if (args.isEmpty) {
-          player.sendMessage("§cUsage: /dm <username|leave>")
-          false
-        } else if (args(0).equalsIgnoreCase("leave")) {
-          activeDMs.remove(player.getUniqueId)
-          player.sendMessage("§aYou have left the DM. Chat is now global.")
-          true
-        } else {
-          val target = Bukkit.getPlayer(args(0))
-          if (target == null) {
-            player.sendMessage(s"§cPlayer ${args(0)} not found or offline.")
-            false
-          } else if (target == player) {
-            player.sendMessage("§cYou cannot DM yourself.")
-            false
-          } else {
-            activeDMs.put(player.getUniqueId, target.getUniqueId)
-            lastSenders.put(target.getUniqueId, player.getUniqueId)
-            player.sendMessage(s"§aNow DMing §6${target.getName}§a. Type normally in chat to send private messages.")
-            true
-          }
-        }
-      case _ =>
-        sender.sendMessage("§cOnly players can use this command.")
-        false
+    if (!sender.isInstanceOf[Player]) {
+      sender.sendMessage("§cOnly players can use this command.")
+      false
     }
+
+    if (args.isEmpty) {
+      player.sendMessage("§cUsage: /dm <username|leave>")
+      false
+    }
+
+    if (args(0).equalsIgnoreCase("leave")) {
+      activeDMs.remove(player.getUniqueId)
+      player.sendMessage("§aYou have left the DM. Chat is now global.")
+      true
+    }
+
+    val target = Bukkit.getPlayer(args(0))
+
+    if (target == null) {
+      player.sendMessage(s"§cPlayer ${args(0)} not found or offline.")
+      false
+    }
+    if (target == player) {
+      player.sendMessage("§cnotepad exists mate")
+      false
+    }
+
+    activeDMs.put(player.getUniqueId, target.getUniqueId)
+    lastSenders.put(target.getUniqueId, player.getUniqueId)
+    player.sendMessage(s"§aNow DMing §6${target.getName}§a. Type normally in chat to send private messages.")
+    true
   }
 }
 
-class RCommandExecutor(plugin: DMChatPlugin) extends CommandExecutor {
+class ReplyCommandClass(plugin: DMChatPlugin) extends CommandExecutor {
   private val lastSenders = plugin.getLastSenders
 
   override def onCommand(sender: CommandSender, command: Command, label: String, args: Array[String]): Boolean = {
-    sender match {
-      case player: Player =>
-        if (args.isEmpty) {
-          player.sendMessage("§cUsage: /r <message>")
+    if (!sender.isInstanceOf[Player]) {
+        sender.sendMessage("§cOnly players can use this command.")
+        false
+    }
+    if (args.isEmpty) {
+      player.sendMessage("§cUsage: /r <message>")
+      false
+    }
+
+    val lastSender = lastSenders.get(player.getUniqueId)
+
+    lastSender match {
+      case Some(lastSenderUuid) =>
+        val target = Bukkit.getPlayer(lastSenderUuid)
+        if (target == null || !target.isOnline) {
+          player.sendMessage("§cThe player you're replying to is offline.")
+          lastSenders.remove(player.getUniqueId)
           false
         } else {
-          lastSenders.get(player.getUniqueId) match {
-            case Some(lastSenderUuid) =>
-              val target = Bukkit.getPlayer(lastSenderUuid)
-              if (target == null || !target.isOnline) {
-                player.sendMessage("§cThe player you're replying to is offline.")
-                lastSenders.remove(player.getUniqueId)
-                false
-              } else {
-                val message = args.mkString(" ")
-                target.sendMessage(s"§7${player.getName} whispers to you: §f$message")
-                player.sendMessage(s"§7You whisper to §6${target.getName}§7: §f$message")
-                lastSenders.put(target.getUniqueId, player.getUniqueId)
-                true
-              }
-            case None =>
-              player.sendMessage("§cYou have no one to reply to.")
-              false
-          }
+          val message = args.mkString(" ")
+          target.sendMessage(s"§7${player.getName} whispers to you: §f$message")
+          player.sendMessage(s"§7You whisper to §6${target.getName}§7: §f$message")
+          lastSenders.put(target.getUniqueId, player.getUniqueId)
+          true
         }
-      case _ =>
-        sender.sendMessage("§cOnly players can use this command.")
+      case None =>
+        player.sendMessage("§cYou have no one to reply to.")
         false
     }
   }
