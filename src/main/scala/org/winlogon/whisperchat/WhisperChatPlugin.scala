@@ -18,7 +18,7 @@ class WhisperChatPlugin extends JavaPlugin {
   override def onEnable(): Unit = {
     isFolia = checkFolia()
     getCommand("dm").setExecutor(new DMCommandExecutor(this))
-    getCommand("r").setExecutor(new ReplyCommandClass(this))
+    getCommand("r").setExecutor(new ReplyCommandExecutor(this))
     Bukkit.getPluginManager.registerEvents(new ChatListener(this), this)
   }
 
@@ -36,56 +36,61 @@ class WhisperChatPlugin extends JavaPlugin {
   def isServerFolia: Boolean = isFolia
 }
 
-class DMCommandExecutor(plugin: DMChatPlugin) extends CommandExecutor {
+class DMCommandExecutor(plugin: WhisperChatPlugin) extends CommandExecutor {
   private val activeDMs = plugin.getActiveDMs
   private val lastSenders = plugin.getLastSenders
 
   override def onCommand(sender: CommandSender, command: Command, label: String, args: Array[String]): Boolean = {
     if (!sender.isInstanceOf[Player]) {
       sender.sendMessage("§cOnly players can use this command.")
-      false
+      return true
     }
 
+    val player = sender.asInstanceOf[Player]
+
     if (args.isEmpty) {
-      player.sendMessage("§cUsage: /dm <username|leave>")
-      false
+      player.sendMessage("§7Usage: §3/dm §2<username|leave>")
+      return true
     }
 
     if (args(0).equalsIgnoreCase("leave")) {
       activeDMs.remove(player.getUniqueId)
-      player.sendMessage("§aYou have left the DM. Chat is now global.")
-      true
+      player.sendMessage("§7You have §3left§7 the DM. Chat is now §2global§7.")
+      return true
     }
 
     val target = Bukkit.getPlayer(args(0))
-
     if (target == null) {
       player.sendMessage(s"§cPlayer ${args(0)} not found or offline.")
-      false
+      return true
     }
+
     if (target == player) {
       player.sendMessage("§cnotepad exists mate")
-      false
+      return true
     }
 
     activeDMs.put(player.getUniqueId, target.getUniqueId)
     lastSenders.put(target.getUniqueId, player.getUniqueId)
-    player.sendMessage(s"§aNow DMing §6${target.getName}§a. Type normally in chat to send private messages.")
+    player.sendMessage(s"§7Now DMing §3${target.getName}§7. Type normally in chat to send private messages.")
     true
   }
 }
 
-class ReplyCommandClass(plugin: DMChatPlugin) extends CommandExecutor {
+class ReplyCommandExecutor(plugin: WhisperChatPlugin) extends CommandExecutor {
   private val lastSenders = plugin.getLastSenders
 
   override def onCommand(sender: CommandSender, command: Command, label: String, args: Array[String]): Boolean = {
     if (!sender.isInstanceOf[Player]) {
-        sender.sendMessage("§cOnly players can use this command.")
-        false
+      sender.sendMessage("§cOnly players can use this command.")
+      return true
     }
+
+    val player = sender.asInstanceOf[Player]
+
     if (args.isEmpty) {
-      player.sendMessage("§cUsage: /r <message>")
-      false
+      player.sendMessage("§7Usage: §3/r §2<message>")
+      return true
     }
 
     val lastSender = lastSenders.get(player.getUniqueId)
@@ -94,9 +99,9 @@ class ReplyCommandClass(plugin: DMChatPlugin) extends CommandExecutor {
       case Some(lastSenderUuid) =>
         val target = Bukkit.getPlayer(lastSenderUuid)
         if (target == null || !target.isOnline) {
-          player.sendMessage("§cThe player you're replying to is offline.")
+          player.sendMessage("§7The player you're replying to is §3offline.")
           lastSenders.remove(player.getUniqueId)
-          false
+          true
         } else {
           val message = args.mkString(" ")
           target.sendMessage(s"§7${player.getName} whispers to you: §f$message")
@@ -106,12 +111,12 @@ class ReplyCommandClass(plugin: DMChatPlugin) extends CommandExecutor {
         }
       case None =>
         player.sendMessage("§cYou have no one to reply to.")
-        false
+        true
     }
   }
 }
 
-class ChatListener(plugin: DMChatPlugin) extends Listener {
+class ChatListener(plugin: WhisperChatPlugin) extends Listener {
   private val activeDMs = plugin.getActiveDMs
   private val lastSenders = plugin.getLastSenders
   private val isFolia = plugin.isServerFolia
@@ -124,23 +129,26 @@ class ChatListener(plugin: DMChatPlugin) extends Listener {
       val message = event.getMessage
       val senderUuid = player.getUniqueId
 
-      val runnable = () => {
-        val sender = Bukkit.getPlayer(senderUuid)
-        if (sender == null || !sender.isOnline) return
+      // Create a proper Java Runnable instance
+      val runnable = new Runnable {
+        override def run(): Unit = {
+          val sender = Bukkit.getPlayer(senderUuid)
+          if (sender == null || !sender.isOnline) return
 
-        val target = Bukkit.getPlayer(targetUuid)
-        if (target == null || !target.isOnline) {
-          sender.sendMessage("§cPlayer is offline. Returning to global chat.")
-          activeDMs.remove(senderUuid)
-        } else {
-          target.sendMessage(s"§7${sender.getName} whispers to you: §f$message")
-          sender.sendMessage(s"§7You whisper to §6${target.getName}§7: §f$message")
-          lastSenders.put(target.getUniqueId, senderUuid)
+          val target = Bukkit.getPlayer(targetUuid)
+          if (target == null || !target.isOnline) {
+            sender.sendMessage("§cPlayer is offline. Returning to global chat.")
+            activeDMs.remove(senderUuid)
+          } else {
+            target.sendMessage(s"§7${sender.getName} whispers to you: §f$message")
+            sender.sendMessage(s"§7You whisper to §6${target.getName}§7: §f$message")
+            lastSenders.put(target.getUniqueId, senderUuid)
+          }
         }
       }
 
       if (isFolia) {
-        player.getScheduler.run(plugin, _ => runnable(), null)
+        player.getScheduler.run(plugin, _ => runnable.run(), null)
       } else {
         Bukkit.getScheduler.runTask(plugin, runnable)
       }

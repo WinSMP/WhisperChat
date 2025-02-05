@@ -1,14 +1,14 @@
 import Dependencies._
 
-val mainClass = "org.winlogon.whisperchat.WhisperChatPlugin"
+val mainPluginClass = "org.winlogon.whisperchat.WhisperChatPlugin"
 ThisBuild / scalaVersion     := "3.3.4"
 ThisBuild / version          := "0.1.0-SNAPSHOT"
 ThisBuild / organization     := "org.winlogon"
 ThisBuild / organizationName := "winlogon"
-Compile / mainClass := Some(mainClass)
+Compile / mainClass := Some(mainPluginClass)
 
 // GitHub CI
-ThisBuild / githubWorkflowJavaVersions += JavaSpec.temurin("21")
+ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21"))
 ThisBuild / publishTo := None
 publish / skip := true
 
@@ -26,7 +26,7 @@ assembly / assemblyMergeStrategy := {
   case _ => MergeStrategy.first
 }
 
-assembly / mainClass := Some(mainClass)
+assembly / mainClass := Some(mainPluginClass)
 
 libraryDependencies ++= Seq(
   "io.papermc.paper" % "paper-api" % "1.21.4-R0.1-SNAPSHOT" % Provided,

@@ -1,4 +1,4 @@
-name: EasyVanish
+name: WhisperChat
 version: '0.1.0-SNAPSHOT'
 main: 'org.winlogon.whisperchat.WhisperChatPlugin'
 api-version: 1.21
@@ -8,14 +8,14 @@ commands:
   dm:
     description: 'DM someone'
     aliases: 'msgtoggle'
-    usage: '/vanish'
-    permission: 'vanish.vanish'
+    usage: /<command> <username>
+    permission: 'whisperchat.dm'
   r:
     description: 'Reply to someone'
+    usage: /<command> <message>
+    permission: 'whisperchat.reply'
 permissions:
-  vanish.vanish:
-    default: op
-  vanish.reload:
-    default: op
-  vanish.list:
-    default: op
+  whisperchat.dm:
+    default: true
+  whisperchat.reply:
+    default: true
