@@ -61,7 +61,7 @@ class DMCommandExecutor(plugin: WhisperChatPlugin) extends CommandExecutor {
 
     val target = Bukkit.getPlayer(args(0))
     if (target == null) {
-      player.sendMessage(s"§cPlayer ${args(0)} not found or offline.")
+      player.sendMessage(s"§cError: §7Player §3${args(0)}§7 not found or offline.")
       return true
     }
 
@@ -121,7 +121,7 @@ class ChatListener(plugin: WhisperChatPlugin) extends Listener {
   private val lastSenders = plugin.getLastSenders
   private val isFolia = plugin.isServerFolia
 
-  @EventHandler(priority = EventPriority.HIGH)
+  @EventHandler(priority = EventPriority.LOWEST)
   def onChat(event: AsyncPlayerChatEvent): Unit = {
     val player = event.getPlayer
     activeDMs.get(player.getUniqueId).foreach { targetUuid =>
