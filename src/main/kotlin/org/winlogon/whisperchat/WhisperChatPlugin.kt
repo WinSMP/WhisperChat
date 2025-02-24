@@ -9,7 +9,7 @@ import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
-import org.bukkit.event.player.AsyncPlayerChatEvent
+import io.papermc.paper.event.player.AsyncChatEvent
 import org.bukkit.plugin.java.JavaPlugin
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -25,7 +25,6 @@ class WhisperChatPlugin : JavaPlugin() {
         saveDefaultConfig()
         config = config
         isFolia = checkFolia()
-        CommandAPI.onEnable(this)
         registerCommands()
         server.pluginManager.registerEvents(ChatListener(this), this)
     }
@@ -206,17 +205,17 @@ class WhisperChatPlugin : JavaPlugin() {
     }
 
     override fun onDisable() {
-        CommandAPI.onDisable()
+
     }
 
     inner class ChatListener : Listener {
         @EventHandler(priority = EventPriority.LOWEST)
-        fun onChat(event: AsyncPlayerChatEvent) {
+        fun onChat(event: AsyncChatEvent) {
             val player = event.player
             val targetId = activeDMs[player.uniqueId] ?: return
-            event.isCancelled = true
+            event.setCancelled(true)
 
-            val message = event.message
+            val message = event.message()
             val runnable = Runnable {
                 val target = Bukkit.getPlayer(targetId) ?: run {
                     player.sendMessage(config.getString("messages.target-offline"))
