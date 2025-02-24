@@ -1,1 +1,25 @@
-# config goes here
+messages:
+  self-whisper-error: "&cYou can't whisper to yourself!"
+  dm-start: "&7Started DM session with &6{target}"
+  dm-switch: "&7Switched to DM with &6{target}"
+  no-dm-sessions: "&cYou have no active DM sessions!"
+  invalid-dm-target: "&cNo active DM session with that player!"
+  dm-list-header: "&7Active DM Sessions:"
+  dm-list-item: "&7- &6{target}"
+  not-in-dm: "&cYou're not in a DM session!"
+  dm-left: "&7Left DM session with &6{target}"
+  no-reply-target: "&cNo one to reply to!"
+  target-offline: "&cThat player is offline!"
+  help:
+    - "&6=== WhisperChat Help ==="
+    - "&3/dm start <player> &7- Start a new DM session"
+    - "&3/dm switch <player> &7- Switch active DM session"
+    - "&3/dm list &7- List active DM sessions"
+    - "&3/dm leave &7- Leave current DM session"
+    - "&3/r <message> &7- Reply to last message"
+    - "&3/w|msg <player> <message> &7- Send a direct message"
+
+formats:
+  whisper: "&7[W] {sender} &7-> &6{receiver}&7: &f{message}"
+  reply: "&7[R] {sender} &7-> &6{receiver}&7: &f{message}"
+  dm: "&7[DM] {sender} &7-> &6{receiver}&7: &f{message}"
