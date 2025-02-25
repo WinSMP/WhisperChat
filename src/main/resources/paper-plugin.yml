@@ -9,3 +9,9 @@ permissions:
     default: true
   whisperchat.reply:
     default: true
+dependencies:
+  server:
+    CommandAPI:
+      load: BEFORE
+      required: true
+      join-classpath: true
