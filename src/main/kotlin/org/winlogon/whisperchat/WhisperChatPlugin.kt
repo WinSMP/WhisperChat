@@ -27,8 +27,6 @@ class WhisperChatPlugin : JavaPlugin() {
     private val lastSenders = ConcurrentHashMap<UUID, UUID>()
     private var isFolia = false
     private lateinit var config: FileConfiguration
-
-    // Create a MiniMessage instance to reuse.
     private val miniMessage: MiniMessage = MiniMessage.miniMessage()
 
     override fun onEnable() {
@@ -50,7 +48,7 @@ class WhisperChatPlugin : JavaPlugin() {
     }
 
     private fun registerCommands() {
-        // DM Command
+       
         CommandAPICommand("dm")
             .withSubcommand(
                 CommandAPICommand("start")
@@ -88,7 +86,7 @@ class WhisperChatPlugin : JavaPlugin() {
             )
             .register()
 
-        // Define the whisper command executor once:
+       
         val whisperExecutor = PlayerCommandExecutor { player, args ->
             val target = args[0] as Player
             val message = args[1] as String
@@ -101,14 +99,14 @@ class WhisperChatPlugin : JavaPlugin() {
             .executesPlayer(whisperExecutor)
         whisperCmd.register()
 
-        // Re-use the same executor for the "msg" command:
+       
         CommandAPICommand("msg")
             .withArguments(PlayerArgument("target"))
             .withArguments(GreedyStringArgument("message"))
             .executesPlayer(whisperExecutor)
             .register()
 
-        // Reply Command
+       
         CommandAPICommand("r")
             .withArguments(GreedyStringArgument("message"))
             .executesPlayer(PlayerCommandExecutor { player, args ->
@@ -245,8 +243,10 @@ class WhisperChatPlugin : JavaPlugin() {
         fun onChat(event: AsyncChatEvent) {
             val player = event.player
             val targetId = activeDMs[player.uniqueId] ?: return
-            event.setCancelled(true)
+            event.isCancelled = true 
 
+            val msg = PlainTextComponentSerializer.plainText().serialize(event.message())
+            
             val runnable = Runnable {
                 val target = Bukkit.getPlayer(targetId) ?: run {
                     player.sendMessage(parseMessage(config.getString("messages.target-offline") ?: "Target is offline."))
@@ -257,13 +257,12 @@ class WhisperChatPlugin : JavaPlugin() {
                     return@Runnable
                 }
 
-                val msg = PlainTextComponentSerializer.plainText().serialize(event.message())
                 sendFormattedMessage(player, target, msg, "dm")
                 lastSenders[target.uniqueId] = player.uniqueId
             }
 
             if (isFolia) {
-                server.scheduler.runTask(this@WhisperChatPlugin, runnable)
+                player.scheduler.run(this@WhisperChatPlugin, { _ -> runnable.run() }, null)
             } else {
                 Bukkit.getScheduler().runTask(this@WhisperChatPlugin, runnable)
             }
@@ -309,7 +308,7 @@ class WhisperChatPlugin : JavaPlugin() {
             'o' to "italic",
             'r' to "reset"
         )
-        // This regex looks for an ampersand followed by any valid color/format code.
+       
         val regex = "&([0-9a-frk-o])".toRegex(RegexOption.IGNORE_CASE)
         return regex.replace(input) { matchResult ->
             val code = matchResult.groupValues[1].lowercase()
