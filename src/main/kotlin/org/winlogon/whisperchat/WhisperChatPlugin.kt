@@ -13,6 +13,8 @@ import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.plugin.java.JavaPlugin
 
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import io.papermc.paper.event.player.AsyncChatEvent
 
@@ -25,6 +27,9 @@ class WhisperChatPlugin : JavaPlugin() {
     private val lastSenders = ConcurrentHashMap<UUID, UUID>()
     private var isFolia = false
     private lateinit var config: FileConfiguration
+
+    // Create a MiniMessage instance to reuse.
+    private val miniMessage: MiniMessage = MiniMessage.miniMessage()
 
     override fun onEnable() {
         saveDefaultConfig()
@@ -115,7 +120,7 @@ class WhisperChatPlugin : JavaPlugin() {
 
     private fun handleDMStart(player: Player, target: Player) {
         if (player == target) {
-            player.sendMessage(config.getString("messages.self-whisper-error") ?: "You cannot whisper yourself!")
+            player.sendMessage(parseMessage(config.getString("messages.self-whisper-error") ?: "You cannot whisper yourself!"))
             return
         }
 
@@ -126,52 +131,58 @@ class WhisperChatPlugin : JavaPlugin() {
         lastSenders[target.uniqueId] = player.uniqueId
 
         player.sendMessage(
-            (config.getString("messages.dm-start") ?: "DM started with {target}")
-                .replace("{target}", target.name)
+            parseMessage(
+                (config.getString("messages.dm-start") ?: "DM started with {target}")
+                    .replace("{target}", target.name)
+            )
         )
     }
 
     private fun handleDMSwitch(player: Player, target: Player) {
         val sessions = dmSessions[player.uniqueId] ?: run {
-            player.sendMessage(config.getString("messages.no-dm-sessions") ?: "No DM sessions found.")
+            player.sendMessage(parseMessage(config.getString("messages.no-dm-sessions") ?: "No DM sessions found."))
             return
         }
 
         if (target.uniqueId in sessions) {
             activeDMs[player.uniqueId] = target.uniqueId
             player.sendMessage(
-                (config.getString("messages.dm-switch") ?: "Switched DM to {target}")
-                    .replace("{target}", target.name)
+                parseMessage(
+                    (config.getString("messages.dm-switch") ?: "Switched DM to {target}")
+                        .replace("{target}", target.name)
+                )
             )
         } else {
-            player.sendMessage(config.getString("messages.invalid-dm-target") ?: "Invalid DM target.")
+            player.sendMessage(parseMessage(config.getString("messages.invalid-dm-target") ?: "Invalid DM target."))
         }
     }
 
     private fun handleDMList(player: Player) {
         val sessions = dmSessions[player.uniqueId] ?: run {
-            player.sendMessage(config.getString("messages.no-dm-sessions") ?: "No DM sessions found.")
+            player.sendMessage(parseMessage(config.getString("messages.no-dm-sessions") ?: "No DM sessions found."))
             return
         }
 
         val onlineTargets = sessions.mapNotNull { Bukkit.getPlayer(it)?.name }
         if (onlineTargets.isEmpty()) {
-            player.sendMessage(config.getString("messages.no-active-dms") ?: "No active DMs.")
+            player.sendMessage(parseMessage(config.getString("messages.no-active-dms") ?: "No active DMs."))
             return
         }
 
-        player.sendMessage(config.getString("messages.dm-list-header") ?: "Active DMs:")
+        player.sendMessage(parseMessage(config.getString("messages.dm-list-header") ?: "Active DMs:"))
         onlineTargets.forEach { target ->
             player.sendMessage(
-                (config.getString("messages.dm-list-item") ?: "{target}")
-                    .replace("{target}", target)
+                parseMessage(
+                    (config.getString("messages.dm-list-item") ?: "{target}")
+                        .replace("{target}", target)
+                )
             )
         }
     }
 
     private fun handleDMLeave(player: Player) {
         val targetId = activeDMs[player.uniqueId] ?: run {
-            player.sendMessage(config.getString("messages.not-in-dm") ?: "You are not in a DM.")
+            player.sendMessage(parseMessage(config.getString("messages.not-in-dm") ?: "You are not in a DM."))
             return
         }
 
@@ -180,20 +191,22 @@ class WhisperChatPlugin : JavaPlugin() {
             sessions.apply { remove(targetId) }
         }
         player.sendMessage(
-            (config.getString("messages.dm-left") ?: "Left DM with {target}")
-                .replace("{target}", Bukkit.getPlayer(targetId)?.name ?: "Unknown")
+            parseMessage(
+                (config.getString("messages.dm-left") ?: "Left DM with {target}")
+                    .replace("{target}", Bukkit.getPlayer(targetId)?.name ?: "Unknown")
+            )
         )
     }
 
     private fun handleReply(player: Player, message: String) {
         val lastSenderId = lastSenders[player.uniqueId] ?: run {
-            player.sendMessage(config.getString("messages.no-reply-target") ?: "No reply target found.")
+            player.sendMessage(parseMessage(config.getString("messages.no-reply-target") ?: "No reply target found."))
             return
         }
 
         val target = Bukkit.getPlayer(lastSenderId) ?: run {
             lastSenders.remove(player.uniqueId)
-            player.sendMessage(config.getString("messages.target-offline") ?: "Target is offline.")
+            player.sendMessage(parseMessage(config.getString("messages.target-offline") ?: "Target is offline."))
             return
         }
 
@@ -208,26 +221,23 @@ class WhisperChatPlugin : JavaPlugin() {
             else -> "formats.default"
         }
 
-        val baseFormat = config.getString(formatKey, "&7[{type}] {sender} &7-> &6{receiver}&7: &f{message}") 
+        val baseFormat = config.getString(formatKey, "&7[{type}] {sender} &7-> &6{receiver}&7: &f{message}")
             ?: "&7[{type}] {sender} &7-> &6{receiver}&7: &f{message}"
-        val format = baseFormat
+        val formatted = baseFormat
             .replace("{type}", type.uppercase())
             .replace("{sender}", sender.name)
             .replace("{receiver}", receiver.name)
             .replace("{message}", message)
 
-        sender.sendMessage(format)
-        receiver.sendMessage(format)
+        val component = parseMessage(formatted)
+        sender.sendMessage(component)
+        receiver.sendMessage(component)
     }
 
     private fun sendHelp(player: Player) {
         config.getStringList("messages.help").forEach { msg ->
-            player.sendMessage(msg)
+            player.sendMessage(parseMessage(msg))
         }
-    }
-
-    override fun onDisable() {
-        // Plugin shutdown logic
     }
 
     inner class ChatListener : Listener {
@@ -239,7 +249,7 @@ class WhisperChatPlugin : JavaPlugin() {
 
             val runnable = Runnable {
                 val target = Bukkit.getPlayer(targetId) ?: run {
-                    player.sendMessage(config.getString("messages.target-offline") ?: "Target is offline.")
+                    player.sendMessage(parseMessage(config.getString("messages.target-offline") ?: "Target is offline."))
                     activeDMs.remove(player.uniqueId)
                     dmSessions.computeIfPresent(player.uniqueId) { _, sessions ->
                         sessions.apply { remove(targetId) }
@@ -247,17 +257,64 @@ class WhisperChatPlugin : JavaPlugin() {
                     return@Runnable
                 }
 
-		val msg = PlainTextComponentSerializer.plainText().serialize(event.message())
+                val msg = PlainTextComponentSerializer.plainText().serialize(event.message())
                 sendFormattedMessage(player, target, msg, "dm")
                 lastSenders[target.uniqueId] = player.uniqueId
             }
 
             if (isFolia) {
-                // Adjust scheduling according to your Folia API usage
                 server.scheduler.runTask(this@WhisperChatPlugin, runnable)
             } else {
                 Bukkit.getScheduler().runTask(this@WhisperChatPlugin, runnable)
             }
+        }
+    }
+
+    /**
+     * Converts legacy ampersand codes to MiniMessage tags and deserializes the string into a Component.
+     *
+     * This function supports both legacy codes (e.g. &a, &c) and native MiniMessage tags.
+     */
+    private fun parseMessage(input: String): Component {
+        return miniMessage.deserialize(legacyToMiniMessage(input))
+    }
+
+    /**
+     * Converts all legacy ampersand color/format codes in the input string to equivalent MiniMessage tags.
+     *
+     * For example, "&aHello &cWorld" becomes "<green>Hello <red>World".
+     */
+    private fun legacyToMiniMessage(input: String): String {
+        val colorMap = mapOf(
+            '0' to "black",
+            '1' to "dark_blue",
+            '2' to "dark_green",
+            '3' to "dark_aqua",
+            '4' to "dark_red",
+            '5' to "dark_purple",
+            '6' to "gold",
+            '7' to "gray",
+            '8' to "dark_gray",
+            '9' to "blue",
+            'a' to "green",
+            'b' to "aqua",
+            'c' to "red",
+            'd' to "light_purple",
+            'e' to "yellow",
+            'f' to "white",
+            'k' to "obfuscated",
+            'l' to "bold",
+            'm' to "strikethrough",
+            'n' to "underlined",
+            'o' to "italic",
+            'r' to "reset"
+        )
+        // This regex looks for an ampersand followed by any valid color/format code.
+        val regex = "&([0-9a-frk-o])".toRegex(RegexOption.IGNORE_CASE)
+        return regex.replace(input) { matchResult ->
+            val code = matchResult.groupValues[1].lowercase()
+            val tag = colorMap[code.first()]
+            if (tag != null) "<$tag>" else matchResult.value
         }
     }
 }
