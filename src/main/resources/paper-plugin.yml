@@ -1,8 +1,10 @@
 name: WhisperChat
 version: '0.1.0-SNAPSHOT'
 main: 'org.winlogon.whisperchat.WhisperChatPlugin'
+authors: ['winlogon']
+website: 'https://github.com/walker84837/WhisperChat'
 api-version: 1.21
-description: ''
+description: 'Minimalist and no nonsense DM plugin.'
 folia-supported: true
 permissions:
   whisperchat.dm:
