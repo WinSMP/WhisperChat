@@ -8,7 +8,6 @@ plugins {
 
 group = "org.winlogon.whisperchat"
 
-
 fun getTime(): String {
     val sdf = SimpleDateFormat("yyMMdd-HHmm")
     sdf.timeZone = TimeZone.getTimeZone("UTC")
@@ -44,10 +43,9 @@ repositories {
         content {
             includeModule("io.papermc.paper", "paper-api")
             includeModule("io.papermc", "paperlib")
-	    includeModule("net.md-5", "bungeecord-chat")
+            includeModule("net.md-5", "bungeecord-chat")
         }
     }
-
     maven {
         name = "minecraft"
         url = uri("https://libraries.minecraft.net")
@@ -55,30 +53,33 @@ repositories {
             includeModule("com.mojang", "brigadier")
         }
     }
-
     maven {
-	    url = uri("https://repo.codemc.org/repository/maven-public/")
+        url = uri("https://repo.codemc.org/repository/maven-public/")
     }
-
     mavenCentral()
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     compileOnly("dev.jorel:commandapi-bukkit-core:9.7.0")
+    
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
     testImplementation("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
+    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.0.0")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:2.1.10")
+    //testImplementation("net.kyori:adventure-api:4.17.0")
+    //testImplementation("net.kyori:adventure-text-minimessage:4.17.0")
+    //testImplementation("net.kyori:adventure-text-serializer-plain:4.17.0")
+    testImplementation("org.mockito:mockito-core:5.11.0")
 }
 
 tasks.test {
     useJUnitPlatform()
 }
 
-
 tasks.processResources {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
-
     filesMatching("**/paper-plugin.yml") {
         expand(
             "NAME" to pluginName,
@@ -98,6 +99,7 @@ tasks.shadowJar {
 tasks.jar {
     enabled = false
 }
+
 tasks.assemble {
     dependsOn(tasks.shadowJar)
 }
@@ -112,7 +114,6 @@ tasks.register("printProjectName") {
 var shadowJarTask = tasks.shadowJar.get()
 tasks.register("release") {
     dependsOn(tasks.build)
-
     doLast {
         if (!version.endsWith("-SNAPSHOT")) {
             shadowJarTask.archiveFile.get().asFile.renameTo(
