@@ -1,5 +1,6 @@
 package org.winlogon.whisperchat
 
+import dev.jorel.commandapi.CommandAPI
 import dev.jorel.commandapi.CommandAPICommand
 import dev.jorel.commandapi.executors.PlayerCommandExecutor
 import dev.jorel.commandapi.arguments.GreedyStringArgument
@@ -28,6 +29,7 @@ class WhisperChatPlugin : JavaPlugin() {
     private var isFolia = false
     private lateinit var config: FileConfiguration
     private val miniMessage: MiniMessage = MiniMessage.miniMessage()
+    private val replacementCommands = arrayOf("w", "msg", "tell")
 
     override fun onEnable() {
         saveDefaultConfig()
@@ -48,6 +50,9 @@ class WhisperChatPlugin : JavaPlugin() {
     }
 
     private fun registerCommands() {
+        for (command in replacementCommands) {
+            CommandAPI.unregister(command)
+        }
        
         CommandAPICommand("dm")
             .withSubcommand(
@@ -93,18 +98,14 @@ class WhisperChatPlugin : JavaPlugin() {
             sendFormattedMessage(player, target, message, "whisper")
         }
 
-        val whisperCmd = CommandAPICommand("w")
-            .withArguments(PlayerArgument("target"))
-            .withArguments(GreedyStringArgument("message"))
-            .executesPlayer(whisperExecutor)
-        whisperCmd.register()
-
-       
-        CommandAPICommand("msg")
+        CommandAPICommand("w")
+            .withAliases("msg")
+            .withAliases("tell")
             .withArguments(PlayerArgument("target"))
             .withArguments(GreedyStringArgument("message"))
             .executesPlayer(whisperExecutor)
             .register()
+
 
        
         CommandAPICommand("r")
