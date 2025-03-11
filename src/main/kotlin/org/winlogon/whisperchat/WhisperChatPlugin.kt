@@ -294,37 +294,37 @@ class WhisperChatPlugin : JavaPlugin() {
      *
      * For example, "&aHello &cWorld" becomes "<green>Hello <red>World".
      */
-    private fun legacyToMiniMessage(input: String): String {
-        val colorMap = mapOf(
-            '0' to "black",
-            '1' to "dark_blue",
-            '2' to "dark_green",
-            '3' to "dark_aqua",
-            '4' to "dark_red",
-            '5' to "dark_purple",
-            '6' to "gold",
-            '7' to "gray",
-            '8' to "dark_gray",
-            '9' to "blue",
-            'a' to "green",
-            'b' to "aqua",
-            'c' to "red",
-            'd' to "light_purple",
-            'e' to "yellow",
-            'f' to "white",
-            'k' to "obfuscated",
-            'l' to "bold",
-            'm' to "strikethrough",
-            'n' to "underlined",
-            'o' to "italic",
-            'r' to "reset"
-        )
-       
-        val regex = "&([0-9a-frk-o])".toRegex(RegexOption.IGNORE_CASE)
-        return regex.replace(input) { matchResult ->
-            val code = matchResult.groupValues[1].lowercase()
-            val tag = colorMap[code.first()]
-            if (tag != null) "<$tag>" else matchResult.value
-        }
-    }
+     private fun legacyToMiniMessage(input: String): String {
+         val colorMap = mapOf(
+             '0' to "black",
+             '1' to "dark_blue",
+             '2' to "dark_green",
+             '3' to "dark_aqua",
+             '4' to "dark_red",
+             '5' to "dark_purple",
+             '6' to "gold",
+             '7' to "gray",
+             '8' to "dark_gray",
+             '9' to "blue",
+             'a' to "green",
+             'b' to "aqua",
+             'c' to "red",
+             'd' to "light_purple",
+             'e' to "yellow",
+             'f' to "white",
+             'k' to "obfuscated",
+             'l' to "bold",
+             'm' to "strikethrough",
+             'n' to "underlined",
+             'o' to "italic",
+             'r' to "reset"
+         )
+     
+         val regex = "&([0-9a-fk-or])".toRegex(RegexOption.IGNORE_CASE)
+         return regex.replace(input) { matchResult ->
+             val code = matchResult.groupValues[1].lowercase()
+             val tag = colorMap[code.first()]
+             if (tag != null) "<$tag>" else matchResult.value
+         }
+     }
 }
