@@ -1,3 +1,5 @@
+public-prefix: "!"
+
 messages:
   self-whisper-error: "&cYou can't whisper to yourself!"
   dm-start: "&7Started DM session with &6{target}"
@@ -11,7 +13,7 @@ messages:
   no-reply-target: "&cNo one to reply to!"
   target-offline: "&cThat player is offline!"
   help:
-    - "&6=== WhisperChat Help ==="
+    - "&6WhisperChat Usage"
     - "&3/dm start <player> &7- Start a new DM session"
     - "&3/dm switch <player> &7- Switch active DM session"
     - "&3/dm list &7- List active DM sessions"
@@ -20,6 +22,6 @@ messages:
     - "&3/w|msg <player> <message> &7- Send a direct message"
 
 formats:
-  whisper: "&7[W] {sender} &7-> &6{receiver}&7: &f{message}"
-  reply: "&7[R] {sender} &7-> &6{receiver}&7: &f{message}"
-  dm: "&7[DM] {sender} &7-> &6{receiver}&7: &f{message}"
+  whisper: "&8[&5W&8]&7 {sender} &7» &2{receiver}&8: &f{message}"
+  reply: "&8[&5R&8]&7 {sender} &7» &2{receiver}&8: &f{message}"
+  dm: "&8[&3DM&8]&7 {sender} &7» &2{receiver}&8: &f{message}"
