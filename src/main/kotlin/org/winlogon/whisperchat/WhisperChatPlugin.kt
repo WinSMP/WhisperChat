@@ -244,10 +244,20 @@ class WhisperChatPlugin : JavaPlugin() {
         fun onChat(event: AsyncChatEvent) {
             val player = event.player
             val targetId = activeDMs[player.uniqueId] ?: return
-            event.isCancelled = true 
-
+    
             val msg = PlainTextComponentSerializer.plainText().serialize(event.message())
-            
+            val prefix = config.getString("public-prefix") ?: "!"
+    
+            if (msg.startsWith(prefix) && msg.length > prefix.length && !msg[prefix.length].isWhitespace()) {
+                val newMessage = msg.substring(prefix.length).trim()
+                val component = parseMessage(newMessage)
+                event.message(component)
+                event.isCancelled = false
+                return
+            }
+    
+            event.isCancelled = true
+    
             val runnable = Runnable {
                 val target = Bukkit.getPlayer(targetId) ?: run {
                     player.sendMessage(parseMessage(config.getString("messages.target-offline") ?: "Target is offline."))
@@ -257,11 +267,11 @@ class WhisperChatPlugin : JavaPlugin() {
                     }
                     return@Runnable
                 }
-
+    
                 sendFormattedMessage(player, target, msg, "dm")
                 lastSenders[target.uniqueId] = player.uniqueId
             }
-
+    
             if (isFolia) {
                 player.scheduler.run(this@WhisperChatPlugin, { _ -> runnable.run() }, null)
             } else {
