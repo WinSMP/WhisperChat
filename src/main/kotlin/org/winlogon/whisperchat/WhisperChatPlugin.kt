@@ -26,6 +26,7 @@ class WhisperChatPlugin : JavaPlugin() {
     private val activeDMs = ConcurrentHashMap<UUID, UUID>()
     private val dmSessions = ConcurrentHashMap<UUID, MutableSet<UUID>>()
     private val lastSenders = ConcurrentHashMap<UUID, UUID>()
+    private val lastInteraction = ConcurrentHashMap<Pair<UUID, UUID>, Long>()
     private var isFolia = false
     private lateinit var config: FileConfiguration
     private val miniMessage: MiniMessage = MiniMessage.miniMessage()
@@ -77,7 +78,8 @@ class WhisperChatPlugin : JavaPlugin() {
             if (activeDMs[a] == b) activeDMs.remove(a)
             if (activeDMs[b] == a) activeDMs.remove(b)
 
-            val message = parseMessage(config.getString("messages.session-expired") ?: Component.text("Your DM session has expired due to inactivity.")
+            val parsedMessage = config.getString("messages.session-expired", "Your DM session has expired due to inactivity.")
+            val message = parseMessage(parsedMessage!!)
             Bukkit.getPlayer(a)?.sendMessage(message)
             Bukkit.getPlayer(b)?.sendMessage(message)
         }
