@@ -91,6 +91,7 @@ class WhisperChatPlugin : JavaPlugin() {
         }
        
         CommandAPICommand("dm")
+	    .withPermission("whisperchat.dm")
             .withSubcommand(
                 CommandAPICommand("start")
                     .withArguments(PlayerArgument("target"))
@@ -135,6 +136,7 @@ class WhisperChatPlugin : JavaPlugin() {
         }
 
         CommandAPICommand("w")
+	    .withPermission("whisperchat.direct")
             .withAliases("msg", "tell")
             .withArguments(PlayerArgument("target"))
             .withArguments(GreedyStringArgument("message"))
@@ -142,6 +144,7 @@ class WhisperChatPlugin : JavaPlugin() {
             .register()
        
         CommandAPICommand("r")
+	    .withPermission("whisperchat.direct")
             .withArguments(GreedyStringArgument("message"))
             .executesPlayer(PlayerCommandExecutor { player, args ->
                 val message = args[0] as String
