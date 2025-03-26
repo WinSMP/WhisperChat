@@ -65,23 +65,33 @@ class WhisperChatPlugin : JavaPlugin() {
 
     private fun checkExpiredSessions() {
         val now = System.currentTimeMillis()
-        val expirationPeriod = 30 * 60 * 1000 // 30 minutes in milliseconds
+        val expirationPeriod = 30 * 60 * 1000
         val expiredPairs = lastInteraction.filter { (_, lastTime) -> now - lastTime >= expirationPeriod }.keys.toList()
-
+    
         expiredPairs.forEach { pair ->
             lastInteraction.remove(pair)
             val (a, b) = pair
-
+    
             dmSessions.computeIfPresent(a) { _, sessions -> sessions.apply { remove(b) } }
             dmSessions.computeIfPresent(b) { _, sessions -> sessions.apply { remove(a) } }
-
+    
             if (activeDMs[a] == b) activeDMs.remove(a)
             if (activeDMs[b] == a) activeDMs.remove(b)
-
-            val parsedMessage = config.getString("messages.session-expired", "Your DM session has expired due to inactivity.")
-            val message = parseMessage(parsedMessage!!)
-            Bukkit.getPlayer(a)?.sendMessage(message)
-            Bukkit.getPlayer(b)?.sendMessage(message)
+    
+            val parsedMessageTemplate = config.getString("messages.session-expired", "Your DM session with {player} has expired due to inactivity.")
+            
+            val aName = Bukkit.getOfflinePlayer(a).name ?: "Unknown"
+            val bName = Bukkit.getOfflinePlayer(b).name ?: "Unknown"
+    
+            Bukkit.getPlayer(a)?.let { playerA ->
+                val message = parseMessage(parsedMessageTemplate!!.replace("{player}", bName))
+                playerA.sendMessage(message)
+            }
+    
+            Bukkit.getPlayer(b)?.let { playerB ->
+                val message = parseMessage(parsedMessageTemplate!!.replace("{player}", aName))
+                playerB.sendMessage(message)
+            }
         }
     }
 
