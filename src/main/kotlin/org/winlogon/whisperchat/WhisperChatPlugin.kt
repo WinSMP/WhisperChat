@@ -26,6 +26,7 @@ class WhisperChatPlugin : JavaPlugin() {
     private val activeDMs = ConcurrentHashMap<UUID, UUID>()
     private val dmSessions = ConcurrentHashMap<UUID, MutableSet<UUID>>()
     private val lastSenders = ConcurrentHashMap<UUID, UUID>()
+    private val lastInteraction = ConcurrentHashMap<Pair<UUID, UUID>, Long>()
     private var isFolia = false
     private lateinit var config: FileConfiguration
     private val miniMessage: MiniMessage = MiniMessage.miniMessage()
@@ -38,6 +39,19 @@ class WhisperChatPlugin : JavaPlugin() {
 
         registerCommands()
         server.pluginManager.registerEvents(ChatListener(), this)
+        startExpirationChecker()
+    }
+
+    private fun startExpirationChecker() {
+        val task = Runnable { checkExpiredSessions() }
+        val delay = 20L * 60 // 1 minute in ticks
+        val interval = 20L * 60 // 1 minute in ticks
+
+        if (isFolia) {
+            server.globalRegionScheduler.runAtFixedRate(this, { _ -> task.run() }, delay, interval)
+        } else {
+            Bukkit.getScheduler().scheduleSyncRepeatingTask(this, task, delay, interval)
+        }
     }
 
     private fun checkFolia(): Boolean {
@@ -49,12 +63,45 @@ class WhisperChatPlugin : JavaPlugin() {
         }
     }
 
+    private fun checkExpiredSessions() {
+        val now = System.currentTimeMillis()
+        val expirationPeriod = 30 * 60 * 1000
+        val expiredPairs = lastInteraction.filter { (_, lastTime) -> now - lastTime >= expirationPeriod }.keys.toList()
+    
+        expiredPairs.forEach { pair ->
+            lastInteraction.remove(pair)
+            val (a, b) = pair
+    
+            dmSessions.computeIfPresent(a) { _, sessions -> sessions.apply { remove(b) } }
+            dmSessions.computeIfPresent(b) { _, sessions -> sessions.apply { remove(a) } }
+    
+            if (activeDMs[a] == b) activeDMs.remove(a)
+            if (activeDMs[b] == a) activeDMs.remove(b)
+    
+            val parsedMessageTemplate = config.getString("messages.session-expired", "Your DM session with {player} has expired due to inactivity.")
+            
+            val aName = Bukkit.getOfflinePlayer(a).name ?: "Unknown"
+            val bName = Bukkit.getOfflinePlayer(b).name ?: "Unknown"
+    
+            Bukkit.getPlayer(a)?.let { playerA ->
+                val message = parseMessage(parsedMessageTemplate!!.replace("{player}", bName))
+                playerA.sendMessage(message)
+            }
+    
+            Bukkit.getPlayer(b)?.let { playerB ->
+                val message = parseMessage(parsedMessageTemplate!!.replace("{player}", aName))
+                playerB.sendMessage(message)
+            }
+        }
+    }
+
     private fun registerCommands() {
         for (command in replacementCommands) {
             CommandAPI.unregister(command)
         }
        
         CommandAPICommand("dm")
+	    .withPermission("whisperchat.dm")
             .withSubcommand(
                 CommandAPICommand("start")
                     .withArguments(PlayerArgument("target"))
@@ -99,16 +146,15 @@ class WhisperChatPlugin : JavaPlugin() {
         }
 
         CommandAPICommand("w")
-            .withAliases("msg")
-            .withAliases("tell")
+	    .withPermission("whisperchat.direct")
+            .withAliases("msg", "tell")
             .withArguments(PlayerArgument("target"))
             .withArguments(GreedyStringArgument("message"))
             .executesPlayer(whisperExecutor)
             .register()
-
-
        
         CommandAPICommand("r")
+	    .withPermission("whisperchat.direct")
             .withArguments(GreedyStringArgument("message"))
             .executesPlayer(PlayerCommandExecutor { player, args ->
                 val message = args[0] as String
@@ -128,6 +174,7 @@ class WhisperChatPlugin : JavaPlugin() {
         }
         activeDMs[player.uniqueId] = target.uniqueId
         lastSenders[target.uniqueId] = player.uniqueId
+        updateLastInteraction(player, target)
 
         player.sendMessage(
             parseMessage(
@@ -231,6 +278,8 @@ class WhisperChatPlugin : JavaPlugin() {
         val component = parseMessage(formatted)
         sender.sendMessage(component)
         receiver.sendMessage(component)
+        updateLastInteraction(sender, receiver)
+        lastSenders[receiver.uniqueId] = sender.uniqueId
     }
 
     private fun sendHelp(player: Player) {
@@ -326,5 +375,14 @@ class WhisperChatPlugin : JavaPlugin() {
              val tag = colorMap[code.first()]
              if (tag != null) "<$tag>" else matchResult.value
          }
+     }
+
+     private fun updateLastInteraction(sender: Player, receiver: Player) {
+        val pair = if (sender.uniqueId < receiver.uniqueId) {
+            Pair(sender.uniqueId, receiver.uniqueId)
+        } else {
+            Pair(receiver.uniqueId, sender.uniqueId)
+        }
+        lastInteraction[pair] = System.currentTimeMillis()
      }
 }

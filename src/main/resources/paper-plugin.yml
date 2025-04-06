@@ -9,7 +9,7 @@ folia-supported: true
 permissions:
   whisperchat.dm:
     default: true
-  whisperchat.reply:
+  whisperchat.direct:
     default: true
 dependencies:
   server:
