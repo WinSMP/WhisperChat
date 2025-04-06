@@ -12,7 +12,7 @@ messages:
   dm-left: "&7Left DM session with &6{target}"
   no-reply-target: "&cNo one to reply to!"
   target-offline: "&cThat player is offline!"
-  session-expired: "&7Your DM session with &3{player} has expired due to inactivity."
+  session-expired: "&7Your DM session with &3{player}&7 has expired due to inactivity."
   help:
     - "&6WhisperChat Usage"
     - "&3/dm start <player> &7- Start a new DM session"
