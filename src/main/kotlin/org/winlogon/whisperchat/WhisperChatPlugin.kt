@@ -3,6 +3,7 @@ package org.winlogon.whisperchat
 import dev.jorel.commandapi.CommandAPI
 import dev.jorel.commandapi.CommandAPICommand
 import dev.jorel.commandapi.executors.PlayerCommandExecutor
+import dev.jorel.commandapi.executors.CommandExecutor
 import dev.jorel.commandapi.arguments.GreedyStringArgument
 import dev.jorel.commandapi.arguments.PlayerArgument
 
@@ -16,7 +17,9 @@ import org.bukkit.plugin.java.JavaPlugin
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+import net.kyori.adventure.text.format.NamedTextColor
 import io.papermc.paper.event.player.AsyncChatEvent
 
 import java.util.*
@@ -35,7 +38,12 @@ class WhisperChatPlugin : JavaPlugin() {
     override fun onEnable() {
         saveDefaultConfig()
         config = getConfig()
-        isFolia = checkFolia()
+        isFolia = try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer")
+            true
+        } catch (e: ClassNotFoundException) {
+            false
+        }
 
         registerCommands()
         server.pluginManager.registerEvents(ChatListener(), this)
@@ -54,15 +62,6 @@ class WhisperChatPlugin : JavaPlugin() {
         }
     }
 
-    private fun checkFolia(): Boolean {
-        return try {
-            Class.forName("io.papermc.paper.threadedregions.RegionizedServer")
-            true
-        } catch (e: ClassNotFoundException) {
-            false
-        }
-    }
-
     private fun checkExpiredSessions() {
         val now = System.currentTimeMillis()
         val expirationPeriod = 30 * 60 * 1000
@@ -78,18 +77,18 @@ class WhisperChatPlugin : JavaPlugin() {
             if (activeDMs[a] == b) activeDMs.remove(a)
             if (activeDMs[b] == a) activeDMs.remove(b)
     
-            val parsedMessageTemplate = config.getString("messages.session-expired", "Your DM session with {player} has expired due to inactivity.")
+            val parsedMessageTemplate = config.getString("messages.session-expired") ?: "Your DM session with {player} has expired due to inactivity."
             
             val aName = Bukkit.getOfflinePlayer(a).name ?: "Unknown"
             val bName = Bukkit.getOfflinePlayer(b).name ?: "Unknown"
     
             Bukkit.getPlayer(a)?.let { playerA ->
-                val message = parseMessage(parsedMessageTemplate!!.replace("{player}", bName))
+                val message = parseMessage(parsedMessageTemplate.replace("{player}", bName))
                 playerA.sendMessage(message)
             }
     
             Bukkit.getPlayer(b)?.let { playerB ->
-                val message = parseMessage(parsedMessageTemplate!!.replace("{player}", aName))
+                val message = parseMessage(parsedMessageTemplate.replace("{player}", aName))
                 playerB.sendMessage(message)
             }
         }
@@ -136,6 +135,16 @@ class WhisperChatPlugin : JavaPlugin() {
                         sendHelp(player)
                     })
             )
+            .withSubcommand(
+                CommandAPICommand("reload")
+                    .withPermission("whisperchat.admin")
+                    .executes(CommandExecutor { sender, _ ->
+                        reloadWhisperConfig()
+                        sender.sendMessage(
+                            Component.text("WhisperChat config reloaded.", NamedTextColor.DARK_GREEN)
+                        )
+                    })
+            )
             .register()
 
        
@@ -161,6 +170,10 @@ class WhisperChatPlugin : JavaPlugin() {
                 handleReply(player, message)
             })
             .register()
+    }
+
+    private fun reloadWhisperConfig() {
+        config = getConfig()
     }
 
     private fun handleDMStart(player: Player, target: Player) {
@@ -267,8 +280,7 @@ class WhisperChatPlugin : JavaPlugin() {
             else -> "formats.default"
         }
 
-        val baseFormat = config.getString(formatKey, "&7[{type}] {sender} &7-> &6{receiver}&7: &f{message}")
-            ?: "&7[{type}] {sender} &7-> &6{receiver}&7: &f{message}"
+        val baseFormat = config.getString(formatKey) ?: "&7[{type}] {sender} &7-> &6{receiver}&7: &f{message}"
         val formatted = baseFormat
             .replace("{type}", type.uppercase())
             .replace("{sender}", sender.name)
@@ -278,6 +290,22 @@ class WhisperChatPlugin : JavaPlugin() {
         val component = parseMessage(formatted)
         sender.sendMessage(component)
         receiver.sendMessage(component)
+
+        if (config.getBoolean("socialspy.console")) {
+            val prefixPlaceholder = Placeholder.component(
+                "prefix", Component.text("[WhisperChat]", NamedTextColor.DARK_BLUE)
+            )
+            val typePlaceholder = Placeholder.component(
+                "type", Component.text("${type.uppercase()}", NamedTextColor.DARK_GREEN)
+            )
+            val messagePlaceholder = Placeholder.component("message", component)
+
+            Bukkit.getConsoleSender().sendRichMessage(
+                "<prefix> > <type>: <message>",
+                prefixPlaceholder, typePlaceholder, messagePlaceholder
+            )
+        }
+
         updateLastInteraction(sender, receiver)
         lastSenders[receiver.uniqueId] = sender.uniqueId
     }

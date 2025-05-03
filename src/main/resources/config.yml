@@ -2,19 +2,19 @@ public-prefix: "!"
 
 messages:
   self-whisper-error: "&cYou can't whisper to yourself!"
-  dm-start: "&7Started DM session with &6{target}"
-  dm-switch: "&7Switched to DM with &6{target}"
+  dm-start: "&7Started DM session with &3{target}"
+  dm-switch: "&7Switched to DM with &3{target}"
   no-dm-sessions: "&cYou have no active DM sessions!"
   invalid-dm-target: "&cNo active DM session with that player!"
   dm-list-header: "&7Active DM sessions:"
   dm-list-item: "&7- &3{target}"
   not-in-dm: "&cYou're not in a DM session!"
-  dm-left: "&7Left DM session with &6{target}"
+  dm-left: "&7Left DM session with &3{target}"
   no-reply-target: "&cNo one to reply to!"
   target-offline: "&cThat player is offline!"
   session-expired: "&7Your DM session with &3{player}&7 has expired due to inactivity."
   help:
-    - "&6WhisperChat Usage"
+    - "&3&lWhisperChat Usage"
     - "&3/dm start <player> &7- Start a new DM session"
     - "&3/dm switch <player> &7- Switch active DM session"
     - "&3/dm list &7- List active DM sessions"
@@ -26,3 +26,6 @@ formats:
   whisper: "&8[&5W&8]&7 &3{sender} &7» &3{receiver}&8: &f{message}"
   reply: "&8[&5R&8]&7 &3{sender} &7» &3{receiver}&8: &f{message}"
   dm: "&8[&3DM&8]&7 &2{sender} &7» &2{receiver}&8: &f{message}"
+
+socialspy:
+  console: false

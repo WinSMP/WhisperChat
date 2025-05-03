@@ -1,6 +1,6 @@
-name: WhisperChat
-version: '0.1.0-SNAPSHOT'
-main: 'org.winlogon.whisperchat.WhisperChatPlugin'
+name: '${NAME}'
+version: '${VERSION}-SNAPSHOT'
+main: '${PACKAGE}.WhisperChatPlugin'
 authors: ['winlogon']
 website: 'https://github.com/walker84837/WhisperChat'
 api-version: 1.21
@@ -11,6 +11,8 @@ permissions:
     default: true
   whisperchat.direct:
     default: true
+  whisperchat.admin:
+    default: op
 dependencies:
   server:
     CommandAPI:

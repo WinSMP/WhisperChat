@@ -66,11 +66,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
     testImplementation("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
-    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.0.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.1.10")
-    //testImplementation("net.kyori:adventure-api:4.17.0")
-    //testImplementation("net.kyori:adventure-text-minimessage:4.17.0")
-    //testImplementation("net.kyori:adventure-text-serializer-plain:4.17.0")
     testImplementation("org.mockito:mockito-core:5.11.0")
 }
 
