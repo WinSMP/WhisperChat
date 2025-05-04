@@ -25,6 +25,10 @@ import io.papermc.paper.event.player.AsyncChatEvent
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
+enum class MessageType {
+    DM, WHISPER, REPLY
+}
+
 class WhisperChatPlugin : JavaPlugin() {
     private val activeDMs = ConcurrentHashMap<UUID, UUID>()
     private val dmSessions = ConcurrentHashMap<UUID, MutableSet<UUID>>()
@@ -151,7 +155,7 @@ class WhisperChatPlugin : JavaPlugin() {
         val whisperExecutor = PlayerCommandExecutor { player, args ->
             val target = args[0] as Player
             val message = args[1] as String
-            sendFormattedMessage(player, target, message, "whisper")
+            sendFormattedMessage(player, target, message, MessageType.WHISPER)
         }
 
         CommandAPICommand("w")
@@ -269,20 +273,20 @@ class WhisperChatPlugin : JavaPlugin() {
             return
         }
 
-        sendFormattedMessage(player, target, message, "reply")
+        sendFormattedMessage(player, target, message, MessageType.REPLY)
         lastSenders[target.uniqueId] = player.uniqueId
     }
 
-    fun sendFormattedMessage(sender: Player, receiver: Player, message: String, type: String) {
+    fun sendFormattedMessage(sender: Player, receiver: Player, message: String, type: MessageType) {
         val formatKey = when (type) {
-            "whisper" -> "formats.whisper"
-            "reply" -> "formats.reply"
-            else -> "formats.default"
+            MessageType.WHISPER -> "formats.whisper"
+            MessageType.REPLY -> "formats.reply"
+            MessageType.DM -> "formats.dm"
         }
 
         val baseFormat = config.getString(formatKey) ?: "&7[{type}] {sender} &7-> &6{receiver}&7: &f{message}"
         val formatted = baseFormat
-            .replace("{type}", type.uppercase())
+            .replace("{type}", type.name.uppercase())
             .replace("{sender}", sender.name)
             .replace("{receiver}", receiver.name)
             .replace("{message}", message)
@@ -291,12 +295,12 @@ class WhisperChatPlugin : JavaPlugin() {
         sender.sendMessage(component)
         receiver.sendMessage(component)
 
-        if (config.getBoolean("socialspy.console")) {
+        if (config.getBoolean("socialspy.console") && type == MessageType.DM) {
             val prefixPlaceholder = Placeholder.component(
                 "prefix", Component.text("[WhisperChat]", NamedTextColor.DARK_BLUE)
             )
             val typePlaceholder = Placeholder.component(
-                "type", Component.text("${type.uppercase()}", NamedTextColor.DARK_GREEN)
+                "type", Component.text("${type.name.uppercase()}", NamedTextColor.DARK_GREEN)
             )
             val messagePlaceholder = Placeholder.component("message", component)
 
@@ -304,6 +308,7 @@ class WhisperChatPlugin : JavaPlugin() {
                 "<prefix> > <type>: <message>",
                 prefixPlaceholder, typePlaceholder, messagePlaceholder
             )
+            // save to cache probably?
         }
 
         updateLastInteraction(sender, receiver)
@@ -345,7 +350,7 @@ class WhisperChatPlugin : JavaPlugin() {
                     return@Runnable
                 }
     
-                sendFormattedMessage(player, target, msg, "dm")
+                sendFormattedMessage(player, target, msg, MessageType.DM)
                 lastSenders[target.uniqueId] = player.uniqueId
             }
     
