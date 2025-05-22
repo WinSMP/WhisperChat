@@ -23,6 +23,7 @@ import net.kyori.adventure.text.format.NamedTextColor
 import io.papermc.paper.event.player.AsyncChatEvent
 
 import java.util.*
+import java.util.logging.Logger
 import java.util.concurrent.ConcurrentHashMap
 
 enum class MessageType {
@@ -35,6 +36,7 @@ class WhisperChatPlugin : JavaPlugin() {
     private val lastSenders = ConcurrentHashMap<UUID, UUID>()
     private val lastInteraction = ConcurrentHashMap<Pair<UUID, UUID>, Long>()
     private var isFolia = false
+    private lateinit var logger: Logger
     private lateinit var config: FileConfiguration
     private val miniMessage: MiniMessage = MiniMessage.miniMessage()
     private val replacementCommands = arrayOf("w", "msg", "tell")
@@ -42,6 +44,7 @@ class WhisperChatPlugin : JavaPlugin() {
     override fun onEnable() {
         saveDefaultConfig()
         config = getConfig()
+        logger = getLogger()
         isFolia = try {
             Class.forName("io.papermc.paper.threadedregions.RegionizedServer")
             true
@@ -99,7 +102,9 @@ class WhisperChatPlugin : JavaPlugin() {
     }
 
     private fun registerCommands() {
+        logger.info("Unregistering vanilla commands: ${replacementCommands.contentToString()}")
         for (command in replacementCommands) {
+            logger.info("Replacing command: $command")
             CommandAPI.unregister(command)
         }
        
@@ -178,11 +183,12 @@ class WhisperChatPlugin : JavaPlugin() {
 
     private fun reloadWhisperConfig() {
         config = getConfig()
+        logger.info("Reloaded WhisperChat config succesfully.")
     }
 
     private fun handleDMStart(player: Player, target: Player) {
         if (player == target) {
-            player.sendMessage(parseMessage(config.getString("messages.self-whisper-error") ?: "You cannot whisper yourself!"))
+            player.sendLegacyMessage("messages.self-whisper-error", "You cannot whisper yourself!", null)
             return
         }
 
@@ -193,59 +199,44 @@ class WhisperChatPlugin : JavaPlugin() {
         lastSenders[target.uniqueId] = player.uniqueId
         updateLastInteraction(player, target)
 
-        player.sendMessage(
-            parseMessage(
-                (config.getString("messages.dm-start") ?: "DM started with {target}")
-                    .replace("{target}", target.name)
-            )
-        )
+        player.sendLegacyMessage("messages.dm-start", "DM started with {target}", Pair("{target}", target.name))
     }
 
     private fun handleDMSwitch(player: Player, target: Player) {
         val sessions = dmSessions[player.uniqueId] ?: run {
-            player.sendMessage(parseMessage(config.getString("messages.no-dm-sessions") ?: "No DM sessions found."))
+            player.sendLegacyMessage("messages.no-dm-sessions", "No DM sessions found.", null)
             return
         }
 
         if (target.uniqueId in sessions) {
             activeDMs[player.uniqueId] = target.uniqueId
-            player.sendMessage(
-                parseMessage(
-                    (config.getString("messages.dm-switch") ?: "Switched DM to {target}")
-                        .replace("{target}", target.name)
-                )
-            )
+            player.sendLegacyMessage("messages.dm-switch", "Switched DM to {target}", Pair("{target}", target.name))
         } else {
-            player.sendMessage(parseMessage(config.getString("messages.invalid-dm-target") ?: "Invalid DM target."))
+            player.sendLegacyMessage("messages.invalid-dm-target", "Invalid DM target.", null)
         }
     }
 
     private fun handleDMList(player: Player) {
         val sessions = dmSessions[player.uniqueId] ?: run {
-            player.sendMessage(parseMessage(config.getString("messages.no-dm-sessions") ?: "No DM sessions found."))
+            player.sendLegacyMessage("messages.no-dm-sessions", "No DM sessions found.", null)
             return
         }
 
         val onlineTargets = sessions.mapNotNull { Bukkit.getPlayer(it)?.name }
         if (onlineTargets.isEmpty()) {
-            player.sendMessage(parseMessage(config.getString("messages.no-active-dms") ?: "No active DMs."))
+            player.sendLegacyMessage("messages.no-active-dms", "No active DMs.", null)
             return
         }
 
-        player.sendMessage(parseMessage(config.getString("messages.dm-list-header") ?: "Active DMs:"))
+        player.sendLegacyMessage("messages.dm-list-header", "Active DMs:", null)
         onlineTargets.forEach { target ->
-            player.sendMessage(
-                parseMessage(
-                    (config.getString("messages.dm-list-item") ?: "{target}")
-                        .replace("{target}", target)
-                )
-            )
+            player.sendLegacyMessage("messages.dm-list-item", "{target}", Pair("{target}", target))
         }
     }
 
     private fun handleDMLeave(player: Player) {
         val targetId = activeDMs[player.uniqueId] ?: run {
-            player.sendMessage(parseMessage(config.getString("messages.not-in-dm") ?: "You are not in a DM."))
+            player.sendLegacyMessage("messages.not-in-dm", "You are not in a DM.", null)
             return
         }
 
@@ -253,23 +244,22 @@ class WhisperChatPlugin : JavaPlugin() {
         dmSessions.computeIfPresent(player.uniqueId) { _, sessions ->
             sessions.apply { remove(targetId) }
         }
-        player.sendMessage(
-            parseMessage(
-                (config.getString("messages.dm-left") ?: "Left DM with {target}")
-                    .replace("{target}", Bukkit.getPlayer(targetId)?.name ?: "Unknown")
-            )
+        player.sendLegacyMessage(
+            "messages.dm-left",
+            "Left DM with {target}",
+            Pair("{target}", Bukkit.getPlayer(targetId)?.getName() ?: "Unknown")
         )
     }
 
     private fun handleReply(player: Player, message: String) {
         val lastSenderId = lastSenders[player.uniqueId] ?: run {
-            player.sendMessage(parseMessage(config.getString("messages.no-reply-target") ?: "No reply target found."))
+            player.sendLegacyMessage("messages.no-reply-target", "No reply target found.", null)
             return
         }
 
         val target = Bukkit.getPlayer(lastSenderId) ?: run {
             lastSenders.remove(player.uniqueId)
-            player.sendMessage(parseMessage(config.getString("messages.target-offline") ?: "Target is offline."))
+            player.sendLegacyMessage("messages.target-offline", "Target is offline.", null)
             return
         }
 
@@ -308,7 +298,7 @@ class WhisperChatPlugin : JavaPlugin() {
                 "<prefix> > <type>: <message>",
                 prefixPlaceholder, typePlaceholder, messagePlaceholder
             )
-            // save to cache probably?
+            // TODO: save to cache probably
         }
 
         updateLastInteraction(sender, receiver)
@@ -342,7 +332,7 @@ class WhisperChatPlugin : JavaPlugin() {
     
             val runnable = Runnable {
                 val target = Bukkit.getPlayer(targetId) ?: run {
-                    player.sendMessage(parseMessage(config.getString("messages.target-offline") ?: "Target is offline."))
+                    player.sendLegacyMessage("messages.target-offline", "Target is offline.", null)
                     activeDMs.remove(player.uniqueId)
                     dmSessions.computeIfPresent(player.uniqueId) { _, sessions ->
                         sessions.apply { remove(targetId) }
@@ -418,4 +408,16 @@ class WhisperChatPlugin : JavaPlugin() {
         }
         lastInteraction[pair] = System.currentTimeMillis()
      }
+
+    private fun Player.sendLegacyMessage(messageKey: String, fallback: String, replacement: Pair<String, String>?) {
+        val rawTemplate = config.getString(messageKey) ?: fallback
+
+        val applied = if (replacement != null) {
+            rawTemplate.replace(replacement.first, replacement.second)
+        } else {
+            rawTemplate
+        }
+
+        this.sendMessage(parseMessage(applied))
+    }
 }
