@@ -27,5 +27,7 @@ formats:
   reply: "&8[&5R&8]&7 &3{sender} &7» &3{receiver}&8: &f{message}"
   dm: "&8[&3DM&8]&7 &2{sender} &7» &2{receiver}&8: &f{message}"
 
-socialspy:
-  console: false
+# Valid options:
+# - `console`: log messages to console
+# - `file`: log messages to file
+socialspy: console

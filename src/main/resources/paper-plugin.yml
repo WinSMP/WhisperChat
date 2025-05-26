@@ -7,10 +7,6 @@ api-version: 1.21
 description: 'Minimalist and no nonsense DM plugin.'
 folia-supported: true
 permissions:
-  whisperchat.dm:
-    default: true
-  whisperchat.direct:
-    default: true
   whisperchat.admin:
     default: op
 dependencies:

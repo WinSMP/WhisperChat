@@ -14,6 +14,7 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.plugin.java.JavaPlugin
+import org.winlogon.whisperchat.loggers.*
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -24,6 +25,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import io.papermc.paper.event.player.AsyncChatEvent
 
 import java.util.*
+import java.io.File
 import java.util.logging.Logger
 import java.util.concurrent.ConcurrentHashMap
 
@@ -37,6 +39,7 @@ class WhisperChatPlugin : JavaPlugin() {
     private val lastSenders = ConcurrentHashMap<UUID, UUID>()
     private val lastInteraction = ConcurrentHashMap<Pair<UUID, UUID>, Long>()
     private var isFolia = false
+    private var socialSpyLogger: MessageLogger? = null
     private lateinit var logger: Logger
     private lateinit var config: FileConfiguration
     private val miniMessage: MiniMessage = MiniMessage.miniMessage()
@@ -56,6 +59,18 @@ class WhisperChatPlugin : JavaPlugin() {
         registerCommands()
         server.pluginManager.registerEvents(ChatListener(), this)
         startExpirationChecker()
+        setupSocialSpyLogger()
+    }
+
+    private fun setupSocialSpyLogger() {
+        socialSpyLogger = when (config.getString("socialspy")?.lowercase()) {
+            "console" -> ConsoleLogger()
+            "file" -> {
+                val logDir = File(dataFolder, "socialspy").apply { mkdirs() }
+                DiskLogger(logDir)
+            }
+            else -> null
+        }
     }
 
     private fun startExpirationChecker() {
@@ -110,7 +125,6 @@ class WhisperChatPlugin : JavaPlugin() {
         }
        
         CommandAPICommand("dm")
-	    .withPermission("whisperchat.dm")
             .withSubcommand(
                 CommandAPICommand("start")
                     .withArguments(PlayerArgument("target"))
@@ -150,9 +164,7 @@ class WhisperChatPlugin : JavaPlugin() {
                     .withPermission("whisperchat.admin")
                     .executes(CommandExecutor { sender, _ ->
                         reloadWhisperConfig()
-                        sender.sendMessage(
-                            Component.text("WhisperChat config reloaded.", NamedTextColor.DARK_GREEN)
-                        )
+                        sender.sendRichMessage("<dark_green>WhisperChat config reloaded.")
                     })
             )
             .register()
@@ -165,7 +177,6 @@ class WhisperChatPlugin : JavaPlugin() {
         }
 
         CommandAPICommand("w")
-	    .withPermission("whisperchat.direct")
             .withAliases("msg", "tell")
             .withArguments(PlayerArgument("target"))
             .withArguments(GreedyStringArgument("message"))
@@ -173,7 +184,6 @@ class WhisperChatPlugin : JavaPlugin() {
             .register()
        
         CommandAPICommand("r")
-	    .withPermission("whisperchat.direct")
             .withArguments(GreedyStringArgument("message"))
             .executesPlayer(PlayerCommandExecutor { player, args ->
                 val message = args[0] as String
@@ -286,20 +296,8 @@ class WhisperChatPlugin : JavaPlugin() {
         sender.sendMessage(component)
         receiver.sendMessage(component)
 
-        if (config.getBoolean("socialspy.console") && type == MessageType.DM) {
-            val prefixPlaceholder = Placeholder.component(
-                "prefix", Component.text("[WhisperChat]", NamedTextColor.DARK_BLUE)
-            )
-            val typePlaceholder = Placeholder.component(
-                "type", Component.text("${type.name.uppercase()}", NamedTextColor.DARK_GREEN)
-            )
-            val messagePlaceholder = Placeholder.component("message", component)
-
-            Bukkit.getConsoleSender().sendRichMessage(
-                "<prefix> > <type>: <message>",
-                prefixPlaceholder, typePlaceholder, messagePlaceholder
-            )
-            // TODO: save to cache probably
+        socialSpyLogger?.takeIf { type == MessageType.DM }?.let { logger ->
+            logger.log(Pair(sender.name, receiver.name), component)
         }
 
         updateLastInteraction(sender, receiver)
