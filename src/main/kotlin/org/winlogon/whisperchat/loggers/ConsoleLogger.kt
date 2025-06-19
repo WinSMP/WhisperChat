@@ -1,7 +1,7 @@
 package org.winlogon.whisperchat.loggers
 
-import org.winlogon.whisperchat.MessageLogger
 import org.bukkit.Bukkit
+import org.winlogon.whisperchat.MessageLogger
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.ComponentLike
