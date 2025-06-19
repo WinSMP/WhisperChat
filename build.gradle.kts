@@ -42,7 +42,6 @@ repositories {
         url = uri("https://repo.papermc.io/repository/maven-public/")
         content {
             includeModule("io.papermc.paper", "paper-api")
-            includeModule("io.papermc", "paperlib")
             includeModule("net.md-5", "bungeecord-chat")
         }
     }
@@ -54,17 +53,22 @@ repositories {
         }
     }
     maven {
+        name = "winlogon"
+        url = uri("https://maven.winlogon.org/releases/")
+    }
+    maven {
         url = uri("https://repo.codemc.org/repository/maven-public/")
     }
     mavenCentral()
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.5-R0.1-SNAPSHOT")
     compileOnly("dev.jorel:commandapi-bukkit-core:9.7.0")
+    compileOnly("org.winlogon:retrohue:0.1.0")
     
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
-    testImplementation("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    testImplementation("io.papermc.paper:paper-api:1.21.5-R0.1-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.1.10")
     testImplementation("org.mockito:mockito-core:5.11.0")
