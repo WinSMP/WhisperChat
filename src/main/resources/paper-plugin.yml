@@ -1,6 +1,7 @@
 name: '${NAME}'
 version: '${VERSION}-SNAPSHOT'
 main: '${PACKAGE}.WhisperChatPlugin'
+loader: '${PACKAGE}.WhisperChatLoader'
 authors: ['winlogon']
 website: 'https://github.com/walker84837/WhisperChat'
 api-version: 1.21
