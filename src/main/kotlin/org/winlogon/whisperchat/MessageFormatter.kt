@@ -71,6 +71,6 @@ class MessageFormatter(
     }
 
     private fun legacyToMiniMessage(input: String): String {
-        return formatter.convertToMiniMessage(input)
+        return formatter.convertToMiniMessage(input, '&')
     }
 }
