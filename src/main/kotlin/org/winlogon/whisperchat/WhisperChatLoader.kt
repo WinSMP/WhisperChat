@@ -13,7 +13,7 @@ class WhisperChatLoader : PluginLoader {
         val resolver = MavenLibraryResolver()
 
         val repositories = mapOf(
-            "central" to "https://repo.maven.apache.org/maven2/",
+            "central" to MavenLibraryResolver.MAVEN_CENTRAL_DEFAULT_MIRROR,
             "winlogon-code" to "https://maven.winlogon.org/releases/",
         )
 
