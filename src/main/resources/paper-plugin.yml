@@ -1,5 +1,5 @@
 name: '${NAME}'
-version: '${VERSION}-SNAPSHOT'
+version: '${VERSION}'
 main: '${PACKAGE}.WhisperChatPlugin'
 loader: '${PACKAGE}.WhisperChatLoader'
 authors: ['winlogon']
