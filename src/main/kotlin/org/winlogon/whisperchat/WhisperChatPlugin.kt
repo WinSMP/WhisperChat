@@ -12,6 +12,7 @@ import org.bukkit.configuration.file.FileConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import org.winlogon.whisperchat.MessageFormatter
+import org.winlogon.asynccraftr.AsyncCraftr
 import org.winlogon.whisperchat.loggers.*
 
 import net.kyori.adventure.text.Component
@@ -25,6 +26,7 @@ import java.util.*
 import java.io.File
 import java.util.logging.Logger
 import java.util.concurrent.ConcurrentHashMap
+import java.time.Duration
 
 enum class MessageType {
     DM, WHISPER, REPLY
@@ -35,7 +37,7 @@ class WhisperChatPlugin : JavaPlugin() {
     private val dmSessions = ConcurrentHashMap<UUID, MutableSet<UUID>>()
     private val lastSenders = ConcurrentHashMap<UUID, UUID>()
     private val lastInteraction = ConcurrentHashMap<Pair<UUID, UUID>, Long>()
-    private var isFolia = false
+    private val isFolia = AsyncCraftr.isRunningOnFolia()
     private lateinit var formatter: MessageFormatter
     private lateinit var logger: Logger
     private lateinit var config: FileConfiguration
@@ -47,12 +49,6 @@ class WhisperChatPlugin : JavaPlugin() {
         saveDefaultConfig()
         config = getConfig()
         logger = getLogger()
-        isFolia = try {
-            Class.forName("io.papermc.paper.threadedregions.RegionizedServer")
-            true
-        } catch (e: ClassNotFoundException) {
-            false
-        }
 
         setupSocialSpyLogger()
         formatter = MessageFormatter(config, socialSpyLogger, miniMessage)
@@ -79,14 +75,10 @@ class WhisperChatPlugin : JavaPlugin() {
 
     private fun startExpirationChecker() {
         val task = Runnable { checkExpiredSessions() }
-        val delay = 20L * 60 // 1 minute in ticks
-        val interval = 20L * 60 // 1 minute in ticks
+        val delay = Duration.ofMinutes(1)
+        val interval = delay
 
-        if (isFolia) {
-            server.globalRegionScheduler.runAtFixedRate(this, { _ -> task.run() }, delay, interval)
-        } else {
-            Bukkit.getScheduler().scheduleSyncRepeatingTask(this, task, delay, interval)
-        }
+        AsyncCraftr.runGlobalTaskTimer(this, task, delay, interval)
     }
 
     private fun checkExpiredSessions() {
@@ -169,6 +161,11 @@ class WhisperChatPlugin : JavaPlugin() {
                     .executes(CommandExecutor { sender, _ ->
                         reloadWhisperConfig()
                         sender.sendRichMessage("<dark_green>WhisperChat config reloaded.")
+                    })
+            )
+            .withSubcommand(
+                CommandAPICommand("group")
+                    .executes(CommandExecutor { sender, _ ->
                     })
             )
             .register()
@@ -283,6 +280,7 @@ class WhisperChatPlugin : JavaPlugin() {
 
         formatter.sendFormattedMessage(player, target, message, MessageType.REPLY)
         lastSenders[target.uniqueId] = player.uniqueId
+        updateLastInteraction(player, target)
     }
 
     private fun sendHelp(player: Player) {
