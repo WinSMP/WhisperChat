@@ -12,12 +12,17 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.winlogon.retrohue.RetroHue
 import org.winlogon.whisperchat.MessageLogger
 
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+
 class MessageFormatter(
+    private val lastInteraction: ConcurrentHashMap<Pair<UUID, UUID>, Long>,
     private val config: FileConfiguration,
     private val socialSpyLogger: MessageLogger?,
     private val miniMessage: MiniMessage
 ) {
     private val formatter = RetroHue(miniMessage)
+
     fun sendFormattedMessage(sender: Player, receiver: Player, message: String, type: MessageType) {
         val formatKey = when (type) {
             MessageType.WHISPER -> "formats.whisper"
@@ -39,6 +44,7 @@ class MessageFormatter(
         socialSpyLogger?.takeIf { type == MessageType.DM }?.let { logger ->
             logger.log(Pair(sender.name, receiver.name), component)
         }
+        updateLastInteraction(sender, receiver)
     }
 
     fun sendLegacyMsg(commandSender: Player, messageKey: String, fallback: String, replacement: List<Pair<String, String>>?) {
@@ -57,13 +63,8 @@ class MessageFormatter(
         commandSender.sendMessage(parseMessage(applied))
     }
 
-    fun sendLegacyMessage(commandSender: Player, messageKey: String, fallback: String, replacement: Pair<String, String>?) {
-        val list = if (replacement != null) listOf(replacement) else emptyList()
-        sendLegacyMsg(commandSender, messageKey, fallback, list)
-    }
-
-    private fun sendLegacyMessage(commandSender: Player, messageKey: String, fallback: String, replacement: List<Pair<String, String>>?) {
-        sendLegacyMsg(commandSender, messageKey, fallback, replacement)
+    fun sendLegacyMessage(commandSender: Player, messageKey: String, fallback: String, vararg replacements: Pair<String, String>) {
+        sendLegacyMsg(commandSender, messageKey, fallback, replacements.toList())
     }
 
     fun parseMessage(input: String): Component {
@@ -72,5 +73,14 @@ class MessageFormatter(
 
     private fun legacyToMiniMessage(input: String): String {
         return formatter.convertToMiniMessage(input, '&')
+    }
+
+    private fun updateLastInteraction(sender: Player, receiver: Player) {
+        val pair = if (sender.uniqueId < receiver.uniqueId) {
+            Pair(sender.uniqueId, receiver.uniqueId)
+        } else {
+            Pair(receiver.uniqueId, sender.uniqueId)
+        }
+        lastInteraction[pair] = System.currentTimeMillis()
     }
 }
