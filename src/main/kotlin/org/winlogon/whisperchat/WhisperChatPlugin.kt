@@ -6,6 +6,8 @@ import dev.jorel.commandapi.executors.PlayerCommandExecutor
 import dev.jorel.commandapi.executors.CommandExecutor
 import dev.jorel.commandapi.arguments.GreedyStringArgument
 import dev.jorel.commandapi.arguments.PlayerArgument
+import dev.jorel.commandapi.arguments.StringArgument
+import dev.jorel.commandapi.arguments.ArgumentSuggestions
 
 import org.bukkit.Bukkit
 import org.bukkit.configuration.file.FileConfiguration
@@ -13,6 +15,7 @@ import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import org.winlogon.whisperchat.MessageFormatter
 import org.winlogon.asynccraftr.AsyncCraftr
+import org.winlogon.whisperchat.group.GroupManager
 import org.winlogon.whisperchat.loggers.*
 
 import net.kyori.adventure.text.Component
@@ -37,13 +40,13 @@ class WhisperChatPlugin : JavaPlugin() {
     private val dmSessions = ConcurrentHashMap<UUID, MutableSet<UUID>>()
     private val lastSenders = ConcurrentHashMap<UUID, UUID>()
     private val lastInteraction = ConcurrentHashMap<Pair<UUID, UUID>, Long>()
-    private val isFolia = AsyncCraftr.isRunningOnFolia()
     private lateinit var formatter: MessageFormatter
     private lateinit var logger: Logger
     private lateinit var config: FileConfiguration
     private val miniMessage: MiniMessage = MiniMessage.miniMessage()
     private val replacementCommands = arrayOf("w", "msg", "tell")
     private var socialSpyLogger: MessageLogger? = null
+    val groupManager = GroupManager
 
     override fun onEnable() {
         saveDefaultConfig()
@@ -51,12 +54,16 @@ class WhisperChatPlugin : JavaPlugin() {
         logger = getLogger()
 
         setupSocialSpyLogger()
-        formatter = MessageFormatter(config, socialSpyLogger, miniMessage)
+        formatter = MessageFormatter(lastInteraction, config, socialSpyLogger, miniMessage)
         
         server.pluginManager.registerEvents(
-            DirectMessageHandler(this, activeDMs, dmSessions, lastSenders, formatter, config, isFolia), 
+            DirectMessageHandler(this, activeDMs, dmSessions, lastSenders, formatter, config), 
             this
         )
+
+        AsyncCraftr.runGlobalTaskTimer(this, Runnable {
+            groupManager.expireGroups()
+        }, Duration.ofMinutes(1), Duration.ofMinutes(1))
         
         registerCommands()
         startExpirationChecker()
@@ -163,11 +170,6 @@ class WhisperChatPlugin : JavaPlugin() {
                         sender.sendRichMessage("<dark_green>WhisperChat config reloaded.")
                     })
             )
-            .withSubcommand(
-                CommandAPICommand("group")
-                    .executes(CommandExecutor { sender, _ ->
-                    })
-            )
             .register()
 
         val whisperExecutor = PlayerCommandExecutor { player, args ->
@@ -190,19 +192,118 @@ class WhisperChatPlugin : JavaPlugin() {
                 handleReply(player, message)
             })
             .register()
+
+        registerGroupCommands()
+    }
+
+    private fun registerGroupCommands() {
+        
+
+        CommandAPICommand("dm")
+            .withSubcommand(
+                CommandAPICommand("group")
+                    .withSubcommand(
+                        CommandAPICommand("create")
+                            .executesPlayer(PlayerCommandExecutor { player, _ ->
+                                val group = groupManager.createGroup(player)
+                                formatter.sendLegacyMessage(
+                                    player,
+                                    "messages.group-created",
+                                    "Created group: ${group.name} (Expires in 24 hours)",
+                                    Pair("{group}", group.name)
+                                )
+                            })
+                    )
+                    .withSubcommand(
+                        CommandAPICommand("leave")
+                            .executesPlayer(PlayerCommandExecutor { player, _ ->
+                                if (groupManager.leaveGroup(player)) {
+                                    formatter.sendLegacyMessage(player, "messages.group-left", "Left group")
+                                } else {
+                                    formatter.sendLegacyMessage(player, "messages.not-in-group", "Not in a group")
+                                }
+                            })
+                    )
+                    .withSubcommand(
+                        CommandAPICommand("delete")
+                        .withArguments(
+                            StringArgument("name").replaceSuggestions(ArgumentSuggestions.strings { info ->
+                                val sender = info.sender()
+                                if (sender !is Player) emptyArray()
+                                else groupManager.groups.values
+                                    .filter { it.owner == sender.uniqueId }
+                                    .map { it.name }
+                                    .toTypedArray()
+                            })
+                        )
+                        .executesPlayer(PlayerCommandExecutor { player, args ->
+                            val name = args["name"] as String
+                            if (groupManager.deleteGroup(name, player)) {
+                                formatter.sendLegacyMessage(player, "messages.group-deleted", "Deleted group $name")
+                            } else {
+                                formatter.sendLegacyMessage(player, "messages.cannot-delete-group", "Cannot delete group")
+                            }
+                        })
+                    )
+                    .withSubcommand(
+                        CommandAPICommand("join")
+                            .withArguments(StringArgument("name").replaceSuggestions(ArgumentSuggestions.strings { _ ->
+                                groupManager.groups.values.map { it.name }.toTypedArray()
+                            }))
+                            .executesPlayer(PlayerCommandExecutor { player, args ->
+                                val name = args["name"] as String
+                                if (groupManager.joinGroup(player, name)) {
+                                    formatter.sendLegacyMessage(player, "messages.group-joined", "Joined group $name")
+                                } else {
+                                    formatter.sendLegacyMessage(player, "messages.cannot-join-group", "Cannot join group")
+                                }
+                            })
+                    )
+                    .withSubcommand(
+                        CommandAPICommand("list-current")
+                            .executesPlayer(PlayerCommandExecutor { player, _ ->
+                                val groupName = groupManager.playerGroups[player.uniqueId]
+                                if (groupName == null) {
+                                    formatter.sendLegacyMessage(player, "messages.not-in-group", "Not in a group")
+                                    return@PlayerCommandExecutor
+                                }
+                             
+                                val group = groupManager.groups[groupName]!!
+                                formatter.sendLegacyMessage(player, "messages.group-members", "Group: ${group.name}")
+                             
+                                val owner = Bukkit.getPlayer(group.owner)?.name ?: "Offline"
+                                formatter.sendLegacyMessage(player, "messages.group-owner", "Owner: $owner")
+                             
+                                val members = group.members
+                                    .filter { it != group.owner }
+                                    .mapNotNull { Bukkit.getPlayer(it)?.name }
+                             
+                                if (members.isEmpty()) {
+                                    formatter.sendLegacyMessage(player, "messages.group-no-members", "No other members")
+                                } else {
+                                    formatter.sendLegacyMessage(player, "messages.group-members-list", "Members:")
+                                    members.forEach { member ->
+                                        formatter.sendLegacyMessage(player, "messages.group-member", "- $member")
+                                    }
+                                }
+                            }
+                    )
+                )
+            )
+            .register()
     }
 
     private fun reloadWhisperConfig() {
         reloadConfig()
         config = getConfig()
         setupSocialSpyLogger()
-        formatter = MessageFormatter(config, socialSpyLogger, miniMessage)
+        formatter = MessageFormatter(lastInteraction, config, socialSpyLogger, miniMessage)
         logger.info("Reloaded WhisperChat config successfully.")
     }
 
     private fun handleDMStart(player: Player, target: Player) {
         if (player == target) {
-            formatter.sendLegacyMessage(player, "messages.self-whisper-error", "You cannot whisper yourself!", null)
+            formatter.sendLegacyMessage(player, "messages.self-whisper-error", "You cannot whisper yourself!")
             return
         }
 
@@ -218,7 +319,7 @@ class WhisperChatPlugin : JavaPlugin() {
 
     private fun handleDMSwitch(player: Player, target: Player) {
         val sessions = dmSessions[player.uniqueId] ?: run {
-            formatter.sendLegacyMessage(player, "messages.no-dm-sessions", "No DM sessions found.", null)
+            formatter.sendLegacyMessage(player, "messages.no-dm-sessions", "No DM sessions found.")
             return
         }
 
@@ -226,23 +327,23 @@ class WhisperChatPlugin : JavaPlugin() {
             activeDMs[player.uniqueId] = target.uniqueId
             formatter.sendLegacyMessage(player, "messages.dm-switch", "Switched DM to {target}", Pair("{target}", target.name))
         } else {
-            formatter.sendLegacyMessage(player, "messages.invalid-dm-target", "Invalid DM target.", null)
+            formatter.sendLegacyMessage(player, "messages.invalid-dm-target", "Invalid DM target.")
         }
     }
 
     private fun handleDMList(player: Player) {
         val sessions = dmSessions[player.uniqueId] ?: run {
-            formatter.sendLegacyMessage(player, "messages.no-dm-sessions", "No DM sessions found.", null)
+            formatter.sendLegacyMessage(player, "messages.no-dm-sessions", "No DM sessions found.")
             return
         }
 
         val onlineTargets = sessions.mapNotNull { Bukkit.getPlayer(it)?.name }
         if (onlineTargets.isEmpty()) {
-            formatter.sendLegacyMessage(player, "messages.no-active-dms", "No active DMs.", null)
+            formatter.sendLegacyMessage(player, "messages.no-active-dms", "No active DMs.")
             return
         }
 
-        formatter.sendLegacyMessage(player, "messages.dm-list-header", "Active DMs:", null)
+        formatter.sendLegacyMessage(player, "messages.dm-list-header", "Active DMs:")
         onlineTargets.forEach { target ->
             formatter.sendLegacyMessage(player, "messages.dm-list-item", "{target}", Pair("{target}", target))
         }
@@ -250,7 +351,7 @@ class WhisperChatPlugin : JavaPlugin() {
 
     private fun handleDMLeave(player: Player) {
         val targetId = activeDMs[player.uniqueId] ?: run {
-            formatter.sendLegacyMessage(player, "messages.not-in-dm", "You are not in a DM.", null)
+            formatter.sendLegacyMessage(player, "messages.not-in-dm", "You are not in a DM.")
             return
         }
 
@@ -268,13 +369,13 @@ class WhisperChatPlugin : JavaPlugin() {
 
     private fun handleReply(player: Player, message: String) {
         val lastSenderId = lastSenders[player.uniqueId] ?: run {
-            formatter.sendLegacyMessage(player, "messages.no-reply-target", "No reply target found.", null)
+            formatter.sendLegacyMessage(player, "messages.no-reply-target", "No reply target found.")
             return
         }
 
         val target = Bukkit.getPlayer(lastSenderId) ?: run {
             lastSenders.remove(player.uniqueId)
-            formatter.sendLegacyMessage(player, "messages.target-offline", "Target is offline.", null)
+            formatter.sendLegacyMessage(player, "messages.target-offline", "Target is offline.")
             return
         }
 
@@ -289,7 +390,7 @@ class WhisperChatPlugin : JavaPlugin() {
         }
     }
 
-    private fun updateLastInteraction(sender: Player, receiver: Player) {
+    fun updateLastInteraction(sender: Player, receiver: Player) {
         val pair = if (sender.uniqueId < receiver.uniqueId) {
             Pair(sender.uniqueId, receiver.uniqueId)
         } else {
