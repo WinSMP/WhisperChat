@@ -13,26 +13,27 @@ import org.bukkit.event.Listener
 import org.bukkit.plugin.java.JavaPlugin
 import org.winlogon.whisperchat.MessageFormatter
 import org.winlogon.whisperchat.WhisperChatPlugin
+import org.winlogon.asynccraftr.AsyncCraftr
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 class DirectMessageHandler(
-    private val plugin: JavaPlugin,
+    private val plugin: WhisperChatPlugin,
     private val activeDMs: ConcurrentHashMap<UUID, UUID>,
     private val dmSessions: ConcurrentHashMap<UUID, MutableSet<UUID>>,
     private val lastSenders: ConcurrentHashMap<UUID, UUID>,
     private val formatter: MessageFormatter,
     private val config: FileConfiguration,
-    private val isFolia: Boolean
 ) : Listener {
+    val plainSerializer = PlainTextComponentSerializer.plainText()
 
     @EventHandler(priority = EventPriority.LOWEST)
     fun onChat(event: AsyncChatEvent) {
         val player = event.player
         val targetId = activeDMs[player.uniqueId] ?: return
 
-        val msg = PlainTextComponentSerializer.plainText().serialize(event.message())
+        val msg = plainSerializer.serialize(event.message())
         val prefix = config.getString("public-prefix") ?: "!"
 
         if (msg.startsWith(prefix) && msg.length > prefix.length && !msg[prefix.length].isWhitespace()) {
@@ -45,9 +46,10 @@ class DirectMessageHandler(
 
         event.isCancelled = true
 
+        val targetPlayer = Bukkit.getPlayer(targetId)
         val runnable = Runnable {
-            val target = Bukkit.getPlayer(targetId) ?: run {
-                formatter.sendLegacyMessage(player, "messages.target-offline", "Target is offline.", null)
+            val target = targetPlayer ?: run {
+                formatter.sendLegacyMessage(player, "messages.target-offline", "Target is offline.")
                 activeDMs.remove(player.uniqueId)
                 dmSessions.computeIfPresent(player.uniqueId) { _, sessions ->
                     sessions.apply { remove(targetId) }
@@ -59,10 +61,8 @@ class DirectMessageHandler(
             lastSenders[target.uniqueId] = player.uniqueId
         }
 
-        if (isFolia) {
-            player.scheduler.run(plugin, { _ -> runnable.run() }, null)
-        } else {
-            Bukkit.getScheduler().runTask(plugin, runnable)
-        }
+        AsyncCraftr.runEntityTask(plugin, player, runnable)
+
+        targetPlayer?.let { plugin.updateLastInteraction(player, it) }
     }
 }
