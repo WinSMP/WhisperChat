@@ -22,10 +22,16 @@ messages:
     - "&3/r <message> &7- Reply to last message"
     - "&3/w|msg <player> <message> &7- Send a direct message"
 
+messages:
+  group-joined: "<green>Joined group <group><green>! Use <gray>/dm group switch <group><green> to chat here"
+  group-dm-switched: "<green>Now chatting in group: <group>"
+  group-not-exist: "<red>Group doesn't exist!"
+
 formats:
   whisper: "&8[&5W&8]&7 &3{sender} &7» &3{receiver}&8: &f{message}"
   reply: "&8[&5R&8]&7 &3{sender} &7» &3{receiver}&8: &f{message}"
   dm: "&8[&3DM&8]&7 &2{sender} &7» &2{receiver}&8: &f{message}"
+  group-dm: "<gray>[<aqua>{group}<gray>] <dark_aqua>{sender}<gray>: <white>{message}"
 
 # Valid options:
 # - `console`: log messages to console

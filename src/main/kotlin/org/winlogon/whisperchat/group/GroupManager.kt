@@ -38,11 +38,13 @@ object GroupManager {
     var nouns = listOf<String>()
 
     fun loadNouns() {
+        // TODO: write to plugin data folder as a word list
+        // TODO: use make wordlist URL configurable
         try {
             val url = java.net.URL("https://www.desiquintans.com/downloads/nounlist/nounlist.txt")
             nouns = url.readText().split("\n").filter { it.isNotBlank() }
         } catch (e: Exception) {
-            nouns = listOf("apple", "banana", "cherry", "dragon", "eagle", "falcon")
+            nouns = listOf("apple", "banana", "cherry", "dragon", "eagle", "falcon", "grape", "hedgehog", "iguana", "jellyfish", "cat", "monarch")
         }
     }
 

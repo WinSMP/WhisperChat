@@ -35,8 +35,13 @@ enum class MessageType {
     DM, WHISPER, REPLY
 }
 
+sealed class ActiveConversation {
+    data class PlayerTarget(val target: UUID) : ActiveConversation()
+    data class GroupTarget(val groupName: String) : ActiveConversation()
+}
+
 class WhisperChatPlugin : JavaPlugin() {
-    private val activeDMs = ConcurrentHashMap<UUID, UUID>()
+    private val activeDMs = ConcurrentHashMap<UUID, ActiveConversation>()
     private val dmSessions = ConcurrentHashMap<UUID, MutableSet<UUID>>()
     private val lastSenders = ConcurrentHashMap<UUID, UUID>()
     private val lastInteraction = ConcurrentHashMap<Pair<UUID, UUID>, Long>()
@@ -67,6 +72,8 @@ class WhisperChatPlugin : JavaPlugin() {
         
         registerCommands()
         startExpirationChecker()
+
+        groupManager.loadNouns()
     }
 
     private fun setupSocialSpyLogger() {
@@ -120,6 +127,7 @@ class WhisperChatPlugin : JavaPlugin() {
         }
     }
 
+    // TODO: move command registration logic to separate class
     private fun registerCommands() {
         logger.info("Unregistering vanilla commands: ${replacementCommands.contentToString()}")
         for (command in replacementCommands) {
@@ -197,8 +205,6 @@ class WhisperChatPlugin : JavaPlugin() {
     }
 
     private fun registerGroupCommands() {
-        
-
         CommandAPICommand("dm")
             .withSubcommand(
                 CommandAPICommand("group")
@@ -253,9 +259,25 @@ class WhisperChatPlugin : JavaPlugin() {
                             .executesPlayer(PlayerCommandExecutor { player, args ->
                                 val name = args["name"] as String
                                 if (groupManager.joinGroup(player, name)) {
+                                    activeDMs[player.uniqueId] = ActiveConversation.GroupTarget(name)
                                     formatter.sendLegacyMessage(player, "messages.group-joined", "Joined group $name")
                                 } else {
                                     formatter.sendLegacyMessage(player, "messages.cannot-join-group", "Cannot join group")
+                                }
+                            })
+                    )
+                    .withSubcommand(
+                        CommandAPICommand("switch")
+                            .withArguments(StringArgument("name").replaceSuggestions(ArgumentSuggestions.strings { _ ->
+                                groupManager.groups.values.map { it.name }.toTypedArray()
+                            }))
+                            .executesPlayer(PlayerCommandExecutor { player, args ->
+                                val name = args["name"] as String
+                                if (groupManager.playerGroups[player.uniqueId] == name) {
+                                    activeDMs[player.uniqueId] = ActiveConversation.GroupTarget(name)
+                                    formatter.sendLegacyMessage(player, "messages.group-dm-switched", "Now chatting in group: $name")
+                                } else {
+                                    formatter.sendLegacyMessage(player, "messages.not-in-group", "You're not in this group")
                                 }
                             })
                     )
@@ -301,19 +323,21 @@ class WhisperChatPlugin : JavaPlugin() {
         logger.info("Reloaded WhisperChat config successfully.")
     }
 
+    // TODO: consider moving this to a separate class (which keeps track of individual DMs)
     private fun handleDMStart(player: Player, target: Player) {
         if (player == target) {
             formatter.sendLegacyMessage(player, "messages.self-whisper-error", "You cannot whisper yourself!")
             return
         }
-
+    
         dmSessions.compute(player.uniqueId) { _, sessions ->
             (sessions ?: mutableSetOf()).apply { add(target.uniqueId) }
         }
-        activeDMs[player.uniqueId] = target.uniqueId
+
+        activeDMs[player.uniqueId] = ActiveConversation.PlayerTarget(target.uniqueId)
         lastSenders[target.uniqueId] = player.uniqueId
         updateLastInteraction(player, target)
-
+    
         formatter.sendLegacyMessage(player, "messages.dm-start", "DM started with {target}", Pair("{target}", target.name))
     }
 
@@ -322,9 +346,9 @@ class WhisperChatPlugin : JavaPlugin() {
             formatter.sendLegacyMessage(player, "messages.no-dm-sessions", "No DM sessions found.")
             return
         }
-
+    
         if (target.uniqueId in sessions) {
-            activeDMs[player.uniqueId] = target.uniqueId
+            activeDMs[player.uniqueId] = ActiveConversation.PlayerTarget(target.uniqueId)
             formatter.sendLegacyMessage(player, "messages.dm-switch", "Switched DM to {target}", Pair("{target}", target.name))
         } else {
             formatter.sendLegacyMessage(player, "messages.invalid-dm-target", "Invalid DM target.")
@@ -349,36 +373,45 @@ class WhisperChatPlugin : JavaPlugin() {
         }
     }
 
+    
     private fun handleDMLeave(player: Player) {
-        val targetId = activeDMs[player.uniqueId] ?: run {
+        val activeConv = activeDMs[player.uniqueId] ?: run {
             formatter.sendLegacyMessage(player, "messages.not-in-dm", "You are not in a DM.")
             return
         }
-
-        activeDMs.remove(player.uniqueId)
-        dmSessions.computeIfPresent(player.uniqueId) { _, sessions ->
-            sessions.apply { remove(targetId) }
+    
+        when (activeConv) {
+            is ActiveConversation.PlayerTarget -> {
+                val targetId = activeConv.target
+                activeDMs.remove(player.uniqueId)
+                dmSessions.computeIfPresent(player.uniqueId) { _, sessions ->
+                    sessions.apply { remove(targetId) }
+                }
+                formatter.sendLegacyMessage(
+                    player,
+                    "messages.dm-left",
+                    "Left DM with {target}",
+                    Pair("{target}", Bukkit.getPlayer(targetId)?.name ?: "Unknown")
+                )
+            }
+            is ActiveConversation.GroupTarget -> {
+                formatter.sendLegacyMessage(player, "messages.cannot-leave-group-with-dm", "Use /dm group leave to leave groups")
+            }
         }
-        formatter.sendLegacyMessage(
-            player,
-            "messages.dm-left",
-            "Left DM with {target}",
-            Pair("{target}", Bukkit.getPlayer(targetId)?.getName() ?: "Unknown")
-        )
     }
 
     private fun handleReply(player: Player, message: String) {
-        val lastSenderId = lastSenders[player.uniqueId] ?: run {
+        val lastSenderId: UUID = lastSenders[player.uniqueId] ?: run {
             formatter.sendLegacyMessage(player, "messages.no-reply-target", "No reply target found.")
             return
         }
-
+    
         val target = Bukkit.getPlayer(lastSenderId) ?: run {
             lastSenders.remove(player.uniqueId)
             formatter.sendLegacyMessage(player, "messages.target-offline", "Target is offline.")
             return
         }
-
+    
         formatter.sendFormattedMessage(player, target, message, MessageType.REPLY)
         lastSenders[target.uniqueId] = player.uniqueId
         updateLastInteraction(player, target)
