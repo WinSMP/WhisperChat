@@ -1,14 +1,23 @@
 package org.winlogon.whisperchat.group
 
+import net.kyori.adventure.audience.Audience
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
+
 import org.bukkit.Bukkit
+import org.bukkit.configuration.file.FileConfiguration
 import org.bukkit.entity.Player
-import java.util.*
+import org.bukkit.plugin.Plugin
+
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.time.Duration
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ThreadLocalRandom
-import kotlin.random.Random
-import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
-import net.kyori.adventure.text.format.NamedTextColor
-import net.kyori.adventure.text.Component
+import java.util.function.Consumer
+import java.util.logging.Logger
 
 enum class DisbandReason {
     EXPIRED, DELETED
@@ -17,10 +26,11 @@ enum class DisbandReason {
 class Group(
     val name: String,
     val owner: UUID,
-    val creationTime: Long = System.currentTimeMillis(),
-    val expirationPeriod: Long = 24 * 60 * 60 * 1000,
+) : Audience {
+    val creationTime: Long = System.currentTimeMillis()
+    val expirationPeriod: Long = Duration.ofDays(1).toMillis()
     val members: MutableSet<UUID> = mutableSetOf()
-) {
+
     fun isExpired(): Boolean {
         return System.currentTimeMillis() - creationTime >= expirationPeriod
     }
@@ -30,21 +40,49 @@ class Group(
             Bukkit.getPlayer(memberId)?.sendMessage("[$name] ${sender.name}: $message")
         }
     }
+
+    override fun forEachAudience(action: Consumer<in Audience?>) {
+        members.forEach { uuid ->
+            Bukkit.getPlayer(uuid)?.let { player ->
+                action.accept(player)
+            }
+        }
+    }
 }
 
-object GroupManager {
+class GroupManager(val config: FileConfiguration, val plugin: Plugin) {
+    private val wordListPath = config.getString("wordlist.path") ?: "nounlist.txt"
+    private val wordListUrl = config.getString("wordlist.url") ?: "https://www.desiquintans.com/downloads/nounlist/nounlist.txt"
+    private val defaultNouns = listOf("apple", "banana", "cherry", "dragon", "eagle", "falcon", "grape", "hedgehog", "iguana", "jellyfish", "cat", "monarch")
+
+    private val logger: Logger = plugin.logger
+
     val groups = ConcurrentHashMap<String, Group>()
     val playerGroups = ConcurrentHashMap<UUID, String>()
     var nouns = listOf<String>()
 
-    fun loadNouns() {
-        // TODO: write to plugin data folder as a word list
-        // TODO: use make wordlist URL configurable
+    init {
+        loadNouns()
+    }
+
+    private fun loadNouns() {
+        val pluginWordlistPath = Paths.get(plugin.dataFolder.path, wordListPath)
+        logger.fine("Loading nouns...")
+
         try {
-            val url = java.net.URL("https://www.desiquintans.com/downloads/nounlist/nounlist.txt")
+            if (Files.exists(pluginWordlistPath)) {
+                logger.fine("File $pluginWordlistPath exists. Loading newline-separated nouns.")
+                nouns = Files.readAllLines(pluginWordlistPath).filter { it.isNotBlank() }
+                return
+            }
+
+            logger.fine("File $pluginWordlistPath does not exist. Attempting to download from $wordListUrl.")
+            val url = java.net.URL(wordListUrl)
+            Files.copy(url.openStream(), pluginWordlistPath)
             nouns = url.readText().split("\n").filter { it.isNotBlank() }
         } catch (e: Exception) {
-            nouns = listOf("apple", "banana", "cherry", "dragon", "eagle", "falcon", "grape", "hedgehog", "iguana", "jellyfish", "cat", "monarch")
+            logger.warning("Failed to load nouns from $pluginWordlistPath or $wordListUrl. Using default nouns: $defaultNouns")
+            nouns = defaultNouns
         }
     }
 
@@ -56,6 +94,7 @@ object GroupManager {
     }
 
     fun createGroup(owner: Player): Group {
+        logger.fine("Creating group for ${owner.name}")
         val name = generateName()
         val group = Group(name, owner.uniqueId)
         group.members.add(owner.uniqueId)
@@ -93,6 +132,9 @@ object GroupManager {
         return true
     }
 
+    /**
+     * Returns true if the player was added to the group
+     */
     fun joinGroup(player: Player, name: String): Boolean {
         val group = groups[name] ?: return false
         if (playerGroups.containsKey(player.uniqueId)) return false
@@ -102,6 +144,9 @@ object GroupManager {
         return true
     }
 
+    /**
+     * Deletes expired groups
+     */
     fun expireGroups() {
         val expired = groups.values.filter { it.isExpired() }
         
