@@ -23,13 +23,12 @@ messages:
     - "&3/w|msg <player> <message> &7- Send a direct message"
 
 messages:
-  # TODO: polish these messages' formats to look more readable and use "idiomatic" MiniMessage
-  group-deleted: "<red>Deleted group {group}<red>! Use <gray>/dm group switch {group}<red> to chat here"
-  group-joined: "<green>Joined group {group}<green>! Use <gray>/dm group switch {group}<green> to chat here"
-  group-left: "<red>Left group {group}<red>! Use <gray>/dm group switch {group}<red> to chat here"
-  group-created: "<green>Created group {group}<green>! Use <gray>/dm group switch {group}<green> to chat here"
-  group-dm-switched: "<green>Now chatting in group: {group}"
-  group-not-exist: "<red>Group doesn't exist!"
+  group-deleted: "<dark_red>✖ <red>Deleted group <gold>{group}<red>! <gray>Use <aqua>/dm group switch {group}<gray> to chat here"
+  group-joined: "<dark_green>✔ <green>Joined group <gold>{group}<green>! <gray>Use <aqua>/dm group switch {group}<gray> to chat here"
+  group-left: "<dark_red>⇦ <red>Left group <gold>{group}<red>! <gray>Use <aqua>/dm group switch {group}<gray> to chat here"
+  group-created: "<dark_aqua>★ <aqua>Created group <gold>{group}<aqua>! <gray>Use <aqua>/dm group switch {group}<gray> to chat here"
+  group-dm-switched: "<blue>⇨ <dark_aqua>Now chatting in group: <gold>{group}"
+  group-not-exist: "<dark_red>⚠ <red>That group doesn't exist!"
 
 formats:
   whisper: "&8[&5W&8]&7 &3{sender} &7» &3{receiver}&8: &f{message}"
