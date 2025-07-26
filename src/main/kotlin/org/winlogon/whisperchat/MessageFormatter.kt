@@ -21,6 +21,9 @@ class MessageFormatter(
     private val socialSpyLogger: MessageLogger?,
     private val miniMessage: MiniMessage
 ) {
+    /**
+     * Translates legacy color codes to MiniMessage tags
+     */
     private val formatter = RetroHue(miniMessage)
 
     fun sendFormattedMessage(sender: Player, receiver: Player, message: String, type: MessageType) {
@@ -47,6 +50,10 @@ class MessageFormatter(
         updateLastInteraction(sender, receiver)
     }
 
+    /**
+     * Sends a legacy message taken from the config, converting legacy color codes to MiniMessage tags,
+     * applying some replacements if necessary
+     */
     fun sendLegacyMsg(commandSender: Player, messageKey: String, fallback: String, replacement: List<Pair<String, String>>?) {
         val rawTemplate = config.getString(messageKey) ?: fallback
 
@@ -67,12 +74,39 @@ class MessageFormatter(
         sendLegacyMsg(commandSender, messageKey, fallback, replacements.toList())
     }
 
+    /**
+     * Converts a string's legacy color codes to MiniMessage, returning the serialized MiniMessage component.
+     */
     fun parseMessage(input: String): Component {
-        return miniMessage.deserialize(legacyToMiniMessage(input))
+        return formatter.convertToComponent(input, '&')
     }
 
-    private fun legacyToMiniMessage(input: String): String {
-        return formatter.convertToMiniMessage(input, '&')
+    /**
+     * Converts a string's legacy color codes to MiniMessage, returning the serialized MiniMessage component.
+     */
+    fun parseMessage(input: String, vararg replacements: Pair<String, String>): Component {
+        val sb = StringBuilder(input.length)
+
+        var i = 0
+        while (i < input.length) {
+            var replaced = false
+            // try to find a replacement
+            for ((from, to) in replacements) {
+                // if the string starts with the replacement, replace it
+                if (input.startsWith(from, i)) {
+                    sb.append(to)
+                    i += from.length
+                    replaced = true
+                    break
+                }
+            }
+            // if no replacement was found, just append the character
+            if (!replaced) {
+                sb.append(input[i])
+                i++
+            }
+        }
+        return formatter.convertToComponent(sb.toString(), '&')
     }
 
     private fun updateLastInteraction(sender: Player, receiver: Player) {

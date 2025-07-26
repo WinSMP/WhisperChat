@@ -93,19 +93,17 @@ class DirectMessageHandler(
         event.isCancelled = true
     
         val runnable = Runnable {
-            group.members.forEach { memberId ->
-                if (memberId != player.uniqueId) {
-                    Bukkit.getPlayer(memberId)?.sendMessage(
-                        formatter.parseMessage(
-                            (config.getString("formats.group-dm") 
-                                ?: "<gray>[<aqua>{group}<gray>] <dark_aqua>{sender}<gray>: <white>{message}")
-                                .replace("{group}", groupName)
-                                .replace("{sender}", player.name)
-                                .replace("{message}", msg)
-                        )
-                    )
-                }
-            }
+            val groupMessageFormat = config.getString("formats.group-dm") ?:
+                "<gray>[<aqua>{group}</aqua>] <dark_aqua>{sender}</dark_aqua>:</gray> <white>{message}"
+
+            val formattedMessage = formatter.parseMessage(
+                groupMessageFormat,
+                "{group}" to groupName,
+                "{sender}" to player.name,
+                "{message}" to msg
+            )
+
+            group.sendMessage(formattedMessage)
         }
         AsyncCraftr.runEntityTask(plugin, player, runnable)
     }

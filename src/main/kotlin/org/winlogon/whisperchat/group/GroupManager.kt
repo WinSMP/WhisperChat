@@ -1,9 +1,10 @@
 package org.winlogon.whisperchat.group
 
-import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
+import net.kyori.adventure.audience.ForwardingAudience
+import net.kyori.adventure.audience.Audience
 
 import org.bukkit.Bukkit
 import org.bukkit.configuration.file.FileConfiguration
@@ -26,35 +27,29 @@ enum class DisbandReason {
 class Group(
     val name: String,
     val owner: UUID,
-) : Audience {
+) : ForwardingAudience.Single {
     val creationTime: Long = System.currentTimeMillis()
     val expirationPeriod: Long = Duration.ofDays(1).toMillis()
-    val members: MutableSet<UUID> = mutableSetOf()
+    val members: MutableSet<UUID> = mutableSetOf(owner)
 
+    /**
+     * Returns true if the group has expired
+     */
     fun isExpired(): Boolean {
         return System.currentTimeMillis() - creationTime >= expirationPeriod
     }
 
-    fun sendMessage(sender: Player, message: String) {
-        members.forEach { memberId ->
-            Bukkit.getPlayer(memberId)?.sendMessage("[$name] ${sender.name}: $message")
+    override fun audience(): Audience = Audience.audience(
+        members.mapNotNull { uuid ->
+            Bukkit.getPlayer(uuid)?.let { Audience.audience(it) }
         }
-    }
-
-    override fun forEachAudience(action: Consumer<in Audience?>) {
-        members.forEach { uuid ->
-            Bukkit.getPlayer(uuid)?.let { player ->
-                action.accept(player)
-            }
-        }
-    }
+    )
 }
 
 class GroupManager(val config: FileConfiguration, val plugin: Plugin) {
     private val wordListPath = config.getString("wordlist.path") ?: "nounlist.txt"
     private val wordListUrl = config.getString("wordlist.url") ?: "https://www.desiquintans.com/downloads/nounlist/nounlist.txt"
-    private val defaultNouns = listOf("apple", "banana", "cherry", "dragon", "eagle", "falcon", "grape", "hedgehog", "iguana", "jellyfish", "cat", "monarch")
-
+    private val defaultNouns = listOf("cat", "falcon", "apple", "dragon", "grape", "cherry", "hedgehog", "eagle", "banana", "monarch", "iguana", "jellyfish")
     private val logger: Logger = plugin.logger
 
     val groups = ConcurrentHashMap<String, Group>()
