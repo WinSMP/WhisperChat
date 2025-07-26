@@ -151,7 +151,7 @@ class CommandManager(
                                 val name = args["name"] as String
                                 if (groupManager.joinGroup(player, name)) {
                                     dmSessionManager.activeDMs[player.uniqueId] = ActiveConversation.GroupTarget(name)
-                                    formatter.sendLegacyMessage(player, "messages.group-joined", "Joined group $name")
+                                    formatter.sendLegacyMessage(player, "messages.group-joined", "Joined group $name", "{group}" to name)
                                 } else {
                                     formatter.sendLegacyMessage(player, "messages.cannot-join-group", "Cannot join group")
                                 }
@@ -166,7 +166,7 @@ class CommandManager(
                                 val name = args["name"] as String
                                 if (groupManager.playerGroups[player.uniqueId] == name) {
                                     dmSessionManager.activeDMs[player.uniqueId] = ActiveConversation.GroupTarget(name)
-                                    formatter.sendLegacyMessage(player, "messages.group-dm-switched", "Now chatting in group: $name")
+                                    formatter.sendLegacyMessage(player, "messages.group-dm-switched", "Now chatting in group: $name", "{group}" to name)
                                 } else {
                                     formatter.sendLegacyMessage(player, "messages.not-in-group", "You're not in this group")
                                 }

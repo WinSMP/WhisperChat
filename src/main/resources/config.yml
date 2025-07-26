@@ -23,8 +23,12 @@ messages:
     - "&3/w|msg <player> <message> &7- Send a direct message"
 
 messages:
-  group-joined: "<green>Joined group <group><green>! Use <gray>/dm group switch <group><green> to chat here"
-  group-dm-switched: "<green>Now chatting in group: <group>"
+  # TODO: polish these messages' formats to look more readable and use "idiomatic" MiniMessage
+  group-deleted: "<red>Deleted group {group}<red>! Use <gray>/dm group switch {group}<red> to chat here"
+  group-joined: "<green>Joined group {group}<green>! Use <gray>/dm group switch {group}<green> to chat here"
+  group-left: "<red>Left group {group}<red>! Use <gray>/dm group switch {group}<red> to chat here"
+  group-created: "<green>Created group {group}<green>! Use <gray>/dm group switch {group}<green> to chat here"
+  group-dm-switched: "<green>Now chatting in group: {group}"
   group-not-exist: "<red>Group doesn't exist!"
 
 formats:
