@@ -6,14 +6,17 @@ import org.winlogon.whisperchat.MessageLogger
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.ComponentLike
 import net.kyori.adventure.text.format.NamedTextColor
-import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 
 import kotlin.Result
+import java.util.logging.Logger
 
+/**
+ * Logs messages to the console. This replicates the behavior of running commands
+ * since DMs don't log to console.
+ */
 public class ConsoleLogger : MessageLogger {
     val consoleSender = Bukkit.getConsoleSender()
-    val miniMessage = MiniMessage.miniMessage()
 
     override fun log(players: Pair<String, String>, message: String): Unit {
         consoleSender.sendMessage("${players.first} sent ${players.second}: $message")

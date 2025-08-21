@@ -14,18 +14,21 @@ import org.winlogon.asynccraftr.AsyncCraftr
 import org.winlogon.whisperchat.group.GroupManager
 
 import java.util.UUID
+import java.util.logging.Logger
 
 class DirectMessageHandler(
     private val plugin: WhisperChatPlugin,
     private val dmSessionManager: DMSessionManager,
     private val formatter: MessageFormatter,
     private val config: FileConfiguration,
-    private val groupManager: GroupManager
+    private val groupManager: GroupManager,
+    private val logger: Logger,
 ) : Listener {
     val plainSerializer = PlainTextComponentSerializer.plainText()
 
     @EventHandler(priority = EventPriority.LOWEST)
     fun onChat(event: AsyncChatEvent) {
+        logger.fine("Handling chat event for ${event.player.name}")
         val player = event.player
         val activeConv = dmSessionManager.activeDMs[player.uniqueId] ?: return
 

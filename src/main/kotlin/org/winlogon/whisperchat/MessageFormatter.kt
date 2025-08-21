@@ -14,6 +14,7 @@ import org.winlogon.whisperchat.MessageLogger
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.logging.Logger
 
 class MessageFormatter(
     private val lastInteraction: ConcurrentHashMap<Pair<UUID, UUID>, Long>,

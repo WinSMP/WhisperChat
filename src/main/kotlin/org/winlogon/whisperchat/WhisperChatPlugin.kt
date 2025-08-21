@@ -25,11 +25,11 @@ import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 
 import io.papermc.paper.event.player.AsyncChatEvent
 
-import java.util.*
 import java.io.File
-import java.util.logging.Logger
-import java.util.concurrent.ConcurrentHashMap
 import java.time.Duration
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.logging.Logger
 
 enum class MessageType {
     DM, WHISPER, REPLY
@@ -45,15 +45,21 @@ class WhisperChatPlugin : JavaPlugin() {
     private lateinit var formatter: MessageFormatter
     private lateinit var groupManager: GroupManager
     private lateinit var logger: Logger
+    
     private val dmSessionManager = DMSessionManager()
     private val miniMessage: MiniMessage = MiniMessage.miniMessage()
     private val replacementCommands = arrayOf("w", "msg", "tell")
     private var socialSpyLogger: MessageLogger? = null
+    private val context = CommandRegistrarContext(this, dmSessionManager, groupManager, formatter)
 
-    override fun onEnable() {
+    override fun onLoad() {
         saveDefaultConfig()
         config = getConfig()
         logger = getLogger()
+    }
+
+    override fun onEnable() {
+        logger.fine("Enabling WhisperChat...")
 
         setupSocialSpyLogger()
         formatter = MessageFormatter(dmSessionManager.lastInteraction, config, socialSpyLogger, miniMessage)
@@ -62,10 +68,11 @@ class WhisperChatPlugin : JavaPlugin() {
         server.pluginManager.registerEvents(
             DirectMessageHandler(
                 plugin = this,
+                logger = logger,
                 dmSessionManager = dmSessionManager,
                 formatter = formatter,
                 config = config,
-                groupManager = groupManager
+                groupManager = groupManager,
             ),
             this
         )
@@ -74,8 +81,16 @@ class WhisperChatPlugin : JavaPlugin() {
             groupManager.expireGroups()
         }, Duration.ofMinutes(1), Duration.ofMinutes(1))
         
-        CommandManager(dmSessionManager, groupManager, formatter, config, logger).registerCommands()
+        val registrar = CommandManager(config, logger)
+
+        CommandAPI.onEnable()
+        registrar.registerCommands(context)
         startExpirationChecker()
+    }
+
+    override fun onDisable() {
+        logger.fine("Disabling WhisperChat...")
+        CommandAPI.onDisable()
     }
 
     private fun setupSocialSpyLogger() {
@@ -99,7 +114,9 @@ class WhisperChatPlugin : JavaPlugin() {
 
     private fun checkExpiredSessions() {
         val now = System.currentTimeMillis()
-        val expirationPeriod = 30 * 60 * 1000
+        val expirationPeriod = 30 * 60 * 1000 // 30 minutes
+
+        // get all expired pairs based on last interaction
         val expiredPairs = dmSessionManager.lastInteraction.filter { (_, lastTime) -> 
             now - lastTime >= expirationPeriod 
         }.keys.toList()
@@ -145,9 +162,5 @@ class WhisperChatPlugin : JavaPlugin() {
                 ))
             }
         }
-    }
-
-    private fun updateLastInteraction(sender: Player, receiver: Player) {
-        dmSessionManager.updateLastInteraction(sender, receiver)
     }
 }

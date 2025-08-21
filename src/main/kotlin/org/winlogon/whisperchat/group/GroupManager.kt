@@ -102,6 +102,7 @@ class GroupManager(val config: FileConfiguration, val plugin: Plugin) {
      * Returns true if the group was deleted
      */
     fun deleteGroup(name: String, deleter: Player): Boolean {
+        logger.fine("Deleting group $name by ${deleter.name}")
         val group = groups[name] ?: return false
         if (group.owner != deleter.uniqueId) return false
         
@@ -114,6 +115,7 @@ class GroupManager(val config: FileConfiguration, val plugin: Plugin) {
      * Returns true if the player was removed from the group
      */
     fun leaveGroup(player: Player): Boolean {
+        logger.fine("Player ${player.name} is leaving a group")
         val groupName = playerGroups[player.uniqueId] ?: return false
         val group = groups[groupName] ?: return false
         
@@ -131,6 +133,7 @@ class GroupManager(val config: FileConfiguration, val plugin: Plugin) {
      * Returns true if the player was added to the group
      */
     fun joinGroup(player: Player, name: String): Boolean {
+        logger.fine("Player ${player.name} is joining group $name")
         val group = groups[name] ?: return false
         if (playerGroups.containsKey(player.uniqueId)) return false
         
@@ -143,6 +146,7 @@ class GroupManager(val config: FileConfiguration, val plugin: Plugin) {
      * Deletes expired groups
      */
     fun expireGroups() {
+        logger.fine("Expiring groups...")
         val expired = groups.values.filter { it.isExpired() }
         
         expired.forEach { group ->
