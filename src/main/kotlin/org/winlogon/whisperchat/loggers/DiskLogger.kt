@@ -6,15 +6,18 @@ import net.kyori.adventure.text.ComponentLike
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 
 import kotlin.Result
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
+
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.logging.Logger
 
 public class DiskLogger(private val dataFolder: File) : MessageLogger {
-    private val currentDateTime = ZonedDateTime.now(java.time.ZoneId.of("UTC"))
+    private val currentDateTime = ZonedDateTime.now(ZoneId.of("UTC"))
     private val formatter = DateTimeFormatter.ISO_DATE_TIME
     private val utcIso8601 = currentDateTime.format(formatter)
     private val serializer = PlainTextComponentSerializer.plainText()
@@ -38,7 +41,7 @@ public class DiskLogger(private val dataFolder: File) : MessageLogger {
         }
     }
 
-    fun writeStringToFile(players: Pair<String, String>, message: String) {
+    private fun writeStringToFile(players: Pair<String, String>, message: String) {
         val template = "[$utcIso8601] ${players.first} sent ${players.second}: $message"
 
         Files.write(

@@ -10,59 +10,104 @@ import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
-import org.bukkit.plugin.java.JavaPlugin
-import org.winlogon.whisperchat.MessageFormatter
-import org.winlogon.whisperchat.WhisperChatPlugin
+import org.winlogon.asynccraftr.AsyncCraftr
+import org.winlogon.whisperchat.group.GroupManager
 
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
+import java.util.logging.Logger
 
 class DirectMessageHandler(
-    private val plugin: JavaPlugin,
-    private val activeDMs: ConcurrentHashMap<UUID, UUID>,
-    private val dmSessions: ConcurrentHashMap<UUID, MutableSet<UUID>>,
-    private val lastSenders: ConcurrentHashMap<UUID, UUID>,
+    private val plugin: WhisperChatPlugin,
+    private val dmSessionManager: DMSessionManager,
     private val formatter: MessageFormatter,
     private val config: FileConfiguration,
-    private val isFolia: Boolean
+    private val groupManager: GroupManager,
+    private val logger: Logger,
 ) : Listener {
+    val plainSerializer = PlainTextComponentSerializer.plainText()
 
     @EventHandler(priority = EventPriority.LOWEST)
     fun onChat(event: AsyncChatEvent) {
+        logger.fine("Handling chat event for ${event.player.name}")
         val player = event.player
-        val targetId = activeDMs[player.uniqueId] ?: return
+        val activeConv = dmSessionManager.activeDMs[player.uniqueId] ?: return
 
-        val msg = PlainTextComponentSerializer.plainText().serialize(event.message())
+        when (activeConv) {
+            is ActiveConversation.PlayerTarget -> handlePlayerDM(event, player, activeConv.target)
+            is ActiveConversation.GroupTarget -> handleGroupDM(event, player, activeConv.groupName)
+        }
+    }
+
+    private fun handlePlayerDM(event: AsyncChatEvent, player: Player, targetId: UUID) {
+        val msg = plainSerializer.serialize(event.message())
         val prefix = config.getString("public-prefix") ?: "!"
 
         if (msg.startsWith(prefix) && msg.length > prefix.length && !msg[prefix.length].isWhitespace()) {
             val newMessage = msg.substring(prefix.length).trim()
-            val component = formatter.parseMessage(newMessage)
-            event.message(component)
+            event.message(formatter.parseMessage(newMessage))
             event.isCancelled = false
             return
         }
 
         event.isCancelled = true
 
+        val targetPlayer = Bukkit.getPlayer(targetId)
         val runnable = Runnable {
-            val target = Bukkit.getPlayer(targetId) ?: run {
-                formatter.sendLegacyMessage(player, "messages.target-offline", "Target is offline.", null)
-                activeDMs.remove(player.uniqueId)
-                dmSessions.computeIfPresent(player.uniqueId) { _, sessions ->
+            val target = targetPlayer ?: run {
+                formatter.sendLegacyMessage(player, "messages.target-offline", "Target is offline.")
+                dmSessionManager.activeDMs.remove(player.uniqueId)
+                dmSessionManager.dmSessions.computeIfPresent(player.uniqueId) { _, sessions ->
                     sessions.apply { remove(targetId) }
                 }
                 return@Runnable
             }
 
             formatter.sendFormattedMessage(player, target, msg, MessageType.DM)
-            lastSenders[target.uniqueId] = player.uniqueId
+            dmSessionManager.lastSenders[target.uniqueId] = player.uniqueId
+            dmSessionManager.updateLastInteraction(player, target)
         }
 
-        if (isFolia) {
-            player.scheduler.run(plugin, { _ -> runnable.run() }, null)
-        } else {
-            Bukkit.getScheduler().runTask(plugin, runnable)
+        AsyncCraftr.runEntityTask(plugin, player, runnable)
+    }
+
+    private fun handleGroupDM(event: AsyncChatEvent, player: Player, groupName: String) {
+        val group = groupManager.groups[groupName] ?: run {
+            formatter.sendLegacyMessage(player, "messages.group-not-exist", "Group doesn't exist")
+            dmSessionManager.activeDMs.remove(player.uniqueId)
+            return
         }
+
+        if (player.uniqueId !in group.members) {
+            formatter.sendLegacyMessage(player, "messages.not-in-group", "You're not in this group")
+            dmSessionManager.activeDMs.remove(player.uniqueId)
+            return
+        }
+
+        val msg = plainSerializer.serialize(event.message())
+        val prefix = config.getString("public-prefix") ?: "!"
+
+        if (msg.startsWith(prefix) && msg.length > prefix.length && !msg[prefix.length].isWhitespace()) {
+            val newMessage = msg.substring(prefix.length).trim()
+            event.message(formatter.parseMessage(newMessage))
+            event.isCancelled = false
+            return
+        }
+
+        event.isCancelled = true
+    
+        val runnable = Runnable {
+            val groupMessageFormat = config.getString("formats.group-dm") ?:
+                "<gray>[<aqua>{group}</aqua>] <dark_aqua>{sender}</dark_aqua>:</gray> <white>{message}"
+
+            val formattedMessage = formatter.parseMessage(
+                groupMessageFormat,
+                "{group}" to groupName,
+                "{sender}" to player.name,
+                "{message}" to msg
+            )
+
+            group.sendMessage(formattedMessage)
+        }
+        AsyncCraftr.runEntityTask(plugin, player, runnable)
     }
 }

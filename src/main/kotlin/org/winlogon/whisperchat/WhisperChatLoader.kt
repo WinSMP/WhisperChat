@@ -24,7 +24,9 @@ class WhisperChatLoader : PluginLoader {
         }
 
         val dependencies = mapOf(
-            "org.winlogon:retrohue" to "0.1.0",
+            "org.winlogon:retrohue" to "0.1.1",
+            "org.winlogon:asynccraftr" to "0.1.0",
+            "dev.jorel:commandapi-bukkit-core" to "10.1.2",
         )
 
         for ((artifact, version) in dependencies) {

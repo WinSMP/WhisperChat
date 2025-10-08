@@ -22,10 +22,19 @@ messages:
     - "&3/r <message> &7- Reply to last message"
     - "&3/w|msg <player> <message> &7- Send a direct message"
 
+messages:
+  group-deleted: "<dark_red>✖ <red>Deleted group <gold>{group}<red>! <gray>Use <aqua>/dm group switch {group}<gray> to chat here"
+  group-joined: "<dark_green>✔ <green>Joined group <gold>{group}<green>! <gray>Use <aqua>/dm group switch {group}<gray> to chat here"
+  group-left: "<dark_red>⇦ <red>Left group <gold>{group}<red>! <gray>Use <aqua>/dm group switch {group}<gray> to chat here"
+  group-created: "<dark_aqua>★ <aqua>Created group <gold>{group}<aqua>! <gray>Use <aqua>/dm group switch {group}<gray> to chat here"
+  group-dm-switched: "<blue>⇨ <dark_aqua>Now chatting in group: <gold>{group}"
+  group-not-exist: "<dark_red>⚠ <red>That group doesn't exist!"
+
 formats:
   whisper: "&8[&5W&8]&7 &3{sender} &7» &3{receiver}&8: &f{message}"
   reply: "&8[&5R&8]&7 &3{sender} &7» &3{receiver}&8: &f{message}"
   dm: "&8[&3DM&8]&7 &2{sender} &7» &2{receiver}&8: &f{message}"
+  group-dm: "<gray>[<aqua>{group}<gray>] <dark_aqua>{sender}<gray>: <white>{message}"
 
 # Valid options:
 # - `console`: log messages to console
