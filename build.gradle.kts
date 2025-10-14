@@ -37,6 +37,11 @@ val pluginPackage = project.group.toString()
 val projectName = rootProject.name
 
 repositories {
+    mavenCentral()
+    maven {
+        name = "CommandAPI"
+        url = uri("https://repo.codemc.org/repository/maven-public/")
+    }
     maven {
         name = "papermc"
         url = uri("https://repo.papermc.io/repository/maven-public/")
@@ -56,27 +61,37 @@ repositories {
         name = "winlogon"
         url = uri("https://maven.winlogon.org/releases/")
     }
-    maven {
-        url = uri("https://repo.codemc.org/repository/maven-public/")
-    }
-    mavenCentral()
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.6-R0.1-SNAPSHOT")
-    compileOnly("dev.jorel:commandapi-bukkit-core:10.1.2")
+    compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
+    compileOnly("dev.jorel:commandapi-annotations:11.0.0")
+    compileOnly("dev.jorel:commandapi-core:11.0.0")
+    compileOnly("dev.jorel:commandapi-plugin:11.0.0")
+    compileOnly("dev.jorel:commandapi-preprocessor:11.0.0")
+    compileOnly("dev.jorel:commandapi-paper-core:11.0.0")
     compileOnly("org.winlogon:retrohue:0.1.1")
     compileOnly("org.winlogon:asynccraftr:0.1.0")
     
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
-    testImplementation("io.papermc.paper:paper-api:1.21.6-R0.1-SNAPSHOT")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
-    testImplementation("org.jetbrains.kotlin:kotlin-test:2.1.10")
-    testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.0.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.0")
+
+    testImplementation("org.mockito:mockito-core:5.20.0")
+    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.83.1")
+    testImplementation("dev.jorel:commandapi-paper-test-toolkit:11.0.0")
+
+    testImplementation("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
+    testRuntimeOnly("org.winlogon:retrohue:0.1.1")
+    testRuntimeOnly("org.winlogon:asynccraftr:0.1.0")
+    testRuntimeOnly("dev.jorel:commandapi-core:11.0.0")
+    testRuntimeOnly("dev.jorel:commandapi-paper-core:11.0.0")
 }
 
 tasks.test {
     useJUnitPlatform()
+    testLogging {
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }
 
 tasks.processResources {

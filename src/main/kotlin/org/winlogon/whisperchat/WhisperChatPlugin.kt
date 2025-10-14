@@ -2,12 +2,11 @@ package org.winlogon.whisperchat
 
 import dev.jorel.commandapi.CommandAPI
 import dev.jorel.commandapi.CommandAPICommand
-import dev.jorel.commandapi.executors.PlayerCommandExecutor
 import dev.jorel.commandapi.executors.CommandExecutor
 import dev.jorel.commandapi.arguments.GreedyStringArgument
-import dev.jorel.commandapi.arguments.PlayerArgument
 import dev.jorel.commandapi.arguments.StringArgument
 import dev.jorel.commandapi.arguments.ArgumentSuggestions
+import dev.jorel.commandapi.CommandAPIConfig
 
 import org.bukkit.Bukkit
 import org.bukkit.configuration.file.FileConfiguration
@@ -40,22 +39,24 @@ sealed class ActiveConversation {
     data class GroupTarget(val groupName: String) : ActiveConversation()
 }
 
-class WhisperChatPlugin : JavaPlugin() {
+open class WhisperChatPlugin : JavaPlugin() {
     private lateinit var config: FileConfiguration
     private lateinit var formatter: MessageFormatter
     private lateinit var groupManager: GroupManager
     private lateinit var logger: Logger
-    
+    private lateinit var context: CommandRegistrarContext // Declare as lateinit
+
     private val dmSessionManager = DMSessionManager()
     private val miniMessage: MiniMessage = MiniMessage.miniMessage()
     private val replacementCommands = arrayOf("w", "msg", "tell")
     private var socialSpyLogger: MessageLogger? = null
-    private val context = CommandRegistrarContext(this, dmSessionManager, groupManager, formatter)
 
     override fun onLoad() {
         saveDefaultConfig()
         config = getConfig()
         logger = getLogger()
+
+        // CommandAPI.onLoad(CommandAPIConfig.setUsePluginNamespace(true))
     }
 
     override fun onEnable() {
@@ -64,6 +65,7 @@ class WhisperChatPlugin : JavaPlugin() {
         setupSocialSpyLogger()
         formatter = MessageFormatter(dmSessionManager.lastInteraction, config, socialSpyLogger, miniMessage)
         groupManager = GroupManager(config, this)
+        context = CommandRegistrarContext(this, dmSessionManager, groupManager, formatter) // Initialize here
         
         server.pluginManager.registerEvents(
             DirectMessageHandler(
