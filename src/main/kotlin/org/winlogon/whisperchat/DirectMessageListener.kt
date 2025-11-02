@@ -55,9 +55,21 @@ class DirectMessageHandler(
         val runnable = Runnable {
             val target = targetPlayer ?: run {
                 formatter.sendLegacyMessage(player, "messages.target-offline", "Target is offline.")
-                dmSessionManager.activeDMs.remove(player.uniqueId)
-                dmSessionManager.dmSessions.computeIfPresent(player.uniqueId) { _, sessions ->
-                    sessions.apply { remove(targetId) }
+
+                dmSessionManager.apply {
+                    activeDMs.remove(player.uniqueId)
+                    dmSessions.computeIfPresent(player.uniqueId) { _, sessions ->
+                        sessions.apply {
+                            remove(targetId)
+                        }
+                    }
+                }
+
+                // Explicitly remove the key if the set becomes empty, as computeIfPresent might not reliably do so
+                dmSessionManager.dmSessions[player.uniqueId]?.let { sessions ->
+                    if (sessions.isEmpty()) {
+                        dmSessionManager.dmSessions.remove(player.uniqueId)
+                    }
                 }
                 return@Runnable
             }

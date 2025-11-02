@@ -72,7 +72,7 @@ class GroupManager(val config: FileConfiguration, val plugin: Plugin) {
             }
 
             logger.fine("File $pluginWordlistPath does not exist. Attempting to download from $wordListUrl.")
-            val url = java.net.URL(wordListUrl)
+            val url = java.net.URI.create(wordListUrl).toURL()
             Files.copy(url.openStream(), pluginWordlistPath)
             nouns = url.readText().split("\n").filter { it.isNotBlank() }
         } catch (e: Exception) {
