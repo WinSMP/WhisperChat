@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: ${{ format('{0}-{1}', github.workflow, github.ref) }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: 21
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Retrieve Project Name
+        run: echo "PROJECT_NAME=$(${{ github.workspace }}/gradlew -q printProjectName)" >> $GITHUB_ENV
+
+      - name: Publish with Gradle
+        run: ./gradlew -Pver=${{ github.ref_name }} release
+
+      - name: Upload build results
+        uses: actions/upload-artifact@v5
+        with:
+          name: Release Build
+          path: ${{ github.workspace }}/build/libs/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        id: release
+        with:
+          files: ${{ github.workspace }}/build/libs/*
+          generate_release_notes: true
+          name: ${{ format('Release {0}', github.ref_name) }}
+          prerelease: ${{ contains(github.ref_name, '-rc-') }}
+          fail_on_unmatched_files: true
+          draft: true
+
+    outputs:
+      url: ${{ steps.release.outputs.url }}
+
