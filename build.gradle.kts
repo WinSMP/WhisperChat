@@ -81,6 +81,7 @@ dependencies {
     testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.83.1")
     testImplementation("dev.jorel:commandapi-paper-test-toolkit:11.0.0")
     testImplementation("org.winlogon:retrohue:0.1.1")
+    testImplementation("org.winlogon:asynccraftr:0.1.0")
 
     testImplementation("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
     testRuntimeOnly("org.winlogon:retrohue:0.1.1")

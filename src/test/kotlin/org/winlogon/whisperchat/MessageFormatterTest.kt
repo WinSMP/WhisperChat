@@ -45,10 +45,7 @@ class MessageFormatterTest : BaseWhisperChatTest() {
         messageFormatter = MessageFormatter(lastInteraction, config, socialSpyLogger, miniMessage)
     }
 
-    @AfterEach
-    fun tearDown() {
-        MockBukkit.unmock()
-    }
+
 
     @Test
     fun `sendFormattedMessage sends correct whisper message`() {
