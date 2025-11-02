@@ -18,8 +18,7 @@ import org.winlogon.retrohue.RetroHue
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-class MessageFormatterTest {
-    private lateinit var server: ServerMock
+class MessageFormatterTest : BaseWhisperChatTest() {
     private lateinit var config: FileConfiguration
     private lateinit var socialSpyLogger: MessageLogger
     private lateinit var miniMessage: MiniMessage
@@ -28,8 +27,8 @@ class MessageFormatterTest {
     private lateinit var formatter: RetroHue
 
     @BeforeEach
-    fun setUp() {
-        server = MockBukkit.mock()
+    override fun setUp() {
+        super.setUp()
         config = mock(FileConfiguration::class.java)
         socialSpyLogger = mock(MessageLogger::class.java)
         miniMessage = MiniMessage.miniMessage()
