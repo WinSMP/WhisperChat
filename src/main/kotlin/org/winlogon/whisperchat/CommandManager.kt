@@ -1,16 +1,8 @@
 package org.winlogon.whisperchat
 
-import dev.jorel.commandapi.CommandAPI
-import dev.jorel.commandapi.CommandAPICommand
-import dev.jorel.commandapi.executors.CommandExecutor
-import dev.jorel.commandapi.arguments.GreedyStringArgument
-import dev.jorel.commandapi.arguments.EntitySelectorArgument
-import dev.jorel.commandapi.arguments.StringArgument
 import dev.jorel.commandapi.arguments.ArgumentSuggestions
-import dev.jorel.commandapi.CommandAPIConfig
-import dev.jorel.commandapi.CommandAPIBukkitConfig
+import dev.jorel.commandapi.kotlindsl.*
 import org.bukkit.command.CommandSender
-import dev.jorel.commandapi.executors.CommandArguments
 
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
@@ -47,190 +39,167 @@ class CommandManager(val config: FileConfiguration, val logger: Logger) : Comman
     }
 
     private fun registerDMCommands(ctx: CommandRegistrarContext) {
-        CommandAPICommand("dm")
-            .withSubcommand(
-                CommandAPICommand("start")
-                    .withArguments(EntitySelectorArgument.OnePlayer("target"))
-                    .executes(CommandExecutor { sender, args ->
-                        val player = sender as Player
-                        val target = args[0] as Player
-                        handleDMStart(ctx, player, target)
-                    })
-            )
-            .withSubcommand(
-                CommandAPICommand("switch")
-                    .withArguments(EntitySelectorArgument.OnePlayer("target"))
-                    .executes(CommandExecutor { sender, args ->
-                        val player = sender as Player
-                        val target = args[0] as Player
-                        handleDMSwitch(ctx, player, target)
-                    })
-            )
-            .withSubcommand(
-                CommandAPICommand("list")
-                    .executes(CommandExecutor { sender, _ ->
-                        val player = sender as Player
-                        handleDMList(ctx, player)
-                    })
-            )
-            .withSubcommand(
-                CommandAPICommand("leave")
-                    .executes(CommandExecutor { sender, _ ->
-                        val player = sender as Player
-                        handleDMLeave(ctx, player)
-                    })
-            )
-            .withSubcommand(
-                CommandAPICommand("help")
-                    .executes(CommandExecutor { sender, _ ->
-                        val player = sender as Player
-                        sendHelp(ctx, player)
-                    })
-            )
-            .register()
+        commandAPICommand("dm") {
+            subcommand("start") {
+                entitySelectorArgumentOnePlayer("target")
+                playerExecutor { player, args ->
+                    val target = args["target"] as Player
+                    handleDMStart(ctx, player, target)
+                }
+            }
+            subcommand("switch") {
+                entitySelectorArgumentOnePlayer("target")
+                playerExecutor { player, args ->
+                    val target = args["target"] as Player
+                    handleDMSwitch(ctx, player, target)
+                }
+            }
+            subcommand("list") {
+                playerExecutor { player, _ ->
+                    handleDMList(ctx, player)
+                }
+            }
+            subcommand("leave") {
+                playerExecutor { player, _ ->
+                    handleDMLeave(ctx, player)
+                }
+            }
+            subcommand("help") {
+                playerExecutor { player, _ ->
+                    sendHelp(ctx, player)
+                }
+            }
+        }
     }
 
     private fun registerWhisperCommands(ctx: CommandRegistrarContext) {
-        val whisperExecutor = CommandExecutor { sender, args ->
-            val player = sender as Player
-            val target = args[0] as Player
-            val message = args[1] as String
-            ctx.formatter.sendFormattedMessage(player, target, message, MessageType.WHISPER)
+        commandAPICommand("w") {
+            withAliases("msg", "tell")
+            entitySelectorArgumentOnePlayer("target")
+            greedyStringArgument("message")
+            playerExecutor { player, args ->
+                val target = args["target"] as Player
+                val message = args["message"] as String
+                ctx.formatter.sendFormattedMessage(player, target, message, MessageType.WHISPER)
+            }
         }
-
-        CommandAPICommand("w")
-            .withAliases("msg", "tell")
-            .withArguments(EntitySelectorArgument.OnePlayer("target"))
-            .withArguments(GreedyStringArgument("message"))
-            .executes(whisperExecutor)
-            .register()
     }
 
     private fun registerReplyCommand(ctx: CommandRegistrarContext) {
-        CommandAPICommand("r")
-            .withArguments(GreedyStringArgument("message"))
-            .executes(CommandExecutor { sender, args ->
-                val player = sender as Player
-                val message = args[0] as String
+        commandAPICommand("r") {
+            greedyStringArgument("message")
+            playerExecutor { player, args ->
+                val message = args["message"] as String
                 handleReply(ctx, player, message)
-            })
-            .register()
+            }
+        }
     }
 
     private fun registerGroupCommands(ctx: CommandRegistrarContext) {
-        CommandAPICommand("dm")
-            .withSubcommand(
-                CommandAPICommand("group")
-                    .withSubcommand(
-                        CommandAPICommand("create")
-                            .executes(CommandExecutor { sender, _ ->
-                                val player = sender as Player
-                                val group = ctx.groupManager.createGroup(player)
-                                ctx.formatter.sendLegacyMessage(
-                                    player,
-                                    "messages.group-created",
-                                    "Created group: ${group.name} (Expires in 24 hours)",
-                                    Pair("{group}", group.name)
-                                )
-                            })
-                    )
-                    .withSubcommand(
-                        CommandAPICommand("leave")
-                            .executes(CommandExecutor { sender, _ ->
-                                val player = sender as Player
-                                if (ctx.groupManager.leaveGroup(player)) {
-                                    ctx.formatter.sendLegacyMessage(player, "messages.group-left", "Left group")
-                                } else {
-                                    ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "Not in a group")
-                                }
-                            })
-                    )
-                    .withSubcommand(
-                        CommandAPICommand("delete")
-                        .withArguments(
-                            StringArgument("name").replaceSuggestions(ArgumentSuggestions.strings { info ->
-                                val sender = info.sender()
-                                if (sender !is Player) emptyArray()
-                                else ctx.groupManager.groups.values
-                                    .filter { it.owner == sender.uniqueId }
-                                    .map { it.name }
-                                    .toTypedArray()
-                            })
+        commandAPICommand("dm") {
+            subcommand("group") {
+                subcommand("create") {
+                    playerExecutor { player, _ ->
+                        val group = ctx.groupManager.createGroup(player)
+                        ctx.formatter.sendLegacyMessage(
+                            player,
+                            "messages.group-created",
+                            "Created group: ${group.name} (Expires in 24 hours)",
+                            Pair("{group}", group.name)
                         )
-                        .executes(CommandExecutor { sender, args ->
-                            val player = sender as Player
-                            val name = args["name"] as String
-                            if (ctx.groupManager.deleteGroup(name, player)) {
-                                ctx.formatter.sendLegacyMessage(player, "messages.group-deleted", "Deleted group $name")
-                            } else {
-                                ctx.formatter.sendLegacyMessage(player, "messages.cannot-delete-group", "Cannot delete group")
-                            }
+                    }
+                }
+                subcommand("leave") {
+                    playerExecutor { player, _ ->
+                        if (ctx.groupManager.leaveGroup(player)) {
+                            ctx.formatter.sendLegacyMessage(player, "messages.group-left", "Left group")
+                        } else {
+                            ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "Not in a group")
+                        }
+                    }
+                }
+                subcommand("delete") {
+                    stringArgument("name") {
+                        replaceSuggestions(ArgumentSuggestions.strings { info ->
+                            val sender = info.sender()
+                            if (sender !is Player) emptyArray()
+                            else ctx.groupManager.groups.values
+                                .filter { it.owner == sender.uniqueId }
+                                .map { it.name }
+                                .toTypedArray()
                         })
-                    )
-                    .withSubcommand(
-                        CommandAPICommand("join")
-                            .withArguments(StringArgument("name").replaceSuggestions(ArgumentSuggestions.strings { _ ->
-                                ctx.groupManager.groups.values.map { it.name }.toTypedArray()
-                            }))
-                            .executes(CommandExecutor { sender, args ->
-                                val player = sender as Player
-                                val name = args["name"] as String
-                                if (ctx.groupManager.joinGroup(player, name)) {
-                                    ctx.dmSessionManager.activeDMs[player.uniqueId] = ActiveConversation.GroupTarget(name)
-                                    ctx.formatter.sendLegacyMessage(player, "messages.group-joined", "Joined group $name", "{group}" to name)
-                                } else {
-                                    ctx.formatter.sendLegacyMessage(player, "messages.cannot-join-group", "Cannot join group")
-                                }
-                            })
-                    )
-                    .withSubcommand(
-                        CommandAPICommand("switch")
-                            .withArguments(StringArgument("name").replaceSuggestions(ArgumentSuggestions.strings { _ ->
-                                ctx.groupManager.groups.values.map { it.name }.toTypedArray()
-                            }))
-                            .executes(CommandExecutor { sender, args ->
-                                val player = sender as Player
-                                val name = args["name"] as String
-                                if (ctx.groupManager.playerGroups[player.uniqueId] == name) {
-                                    ctx.dmSessionManager.activeDMs[player.uniqueId] = ActiveConversation.GroupTarget(name)
-                                    ctx.formatter.sendLegacyMessage(player, "messages.group-dm-switched", "Now chatting in group: $name", "{group}" to name)
-                                } else {
-                                    ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "You're not in this group")
-                                }
-                            })
-                    )
-                    .withSubcommand(
-                        CommandAPICommand("list-current")
-                            .executes(CommandExecutor { sender, _ ->
-                                val player = sender as Player
-                                val groupName = ctx.groupManager.playerGroups[player.uniqueId]
-                                if (groupName == null) {
-                                    ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "Not in a group")
-                                    return@CommandExecutor
-                                }
-                             
-                                val group = ctx.groupManager.groups[groupName]!!
-                                ctx.formatter.sendLegacyMessage(player, "messages.group-members", "Group: ${group.name}")
-                             
-                                val owner = Bukkit.getPlayer(group.owner)?.name ?: "Offline"
-                                ctx.formatter.sendLegacyMessage(player, "messages.group-owner", "Owner: $owner")
-                             
-                                val members = group.members
-                                    .filter { it != group.owner }
-                                    .mapNotNull { Bukkit.getPlayer(it)?.name }
-                             
-                                if (members.isEmpty()) {
-                                    ctx.formatter.sendLegacyMessage(player, "messages.group-no-members", "No other members")
-                                } else {
-                                    ctx.formatter.sendLegacyMessage(player, "messages.group-members-list", "Members:")
-                                    members.forEach { member ->
-                                        ctx.formatter.sendLegacyMessage(player, "messages.group-member", "- $member")
-                                    }
-                                }
-                            })
-                    )
-            )
-            .register()
+                    }
+                    playerExecutor { player, args ->
+                        val name = args["name"] as String
+                        if (ctx.groupManager.deleteGroup(name, player)) {
+                            ctx.formatter.sendLegacyMessage(player, "messages.group-deleted", "Deleted group $name")
+                        } else {
+                            ctx.formatter.sendLegacyMessage(player, "messages.cannot-delete-group", "Cannot delete group")
+                        }
+                    }
+                }
+                subcommand("join") {
+                    stringArgument("name") {
+                        replaceSuggestions(ArgumentSuggestions.strings { _ ->
+                            ctx.groupManager.groups.values.map { it.name }.toTypedArray()
+                        })
+                    }
+                    playerExecutor { player, args ->
+                        val name = args["name"] as String
+                        if (ctx.groupManager.joinGroup(player, name)) {
+                            ctx.dmSessionManager.activeDMs[player.uniqueId] = ActiveConversation.GroupTarget(name)
+                            ctx.formatter.sendLegacyMessage(player, "messages.group-joined", "Joined group $name", "{group}" to name)
+                        } else {
+                            ctx.formatter.sendLegacyMessage(player, "messages.cannot-join-group", "Cannot join group")
+                        }
+                    }
+                }
+                subcommand("switch") {
+                    stringArgument("name") {
+                        replaceSuggestions(ArgumentSuggestions.strings { _ ->
+                            ctx.groupManager.groups.values.map { it.name }.toTypedArray()
+                        })
+                    }
+                    playerExecutor { player, args ->
+                        val name = args["name"] as String
+                        if (ctx.groupManager.playerGroups[player.uniqueId] == name) {
+                            ctx.dmSessionManager.activeDMs[player.uniqueId] = ActiveConversation.GroupTarget(name)
+                            ctx.formatter.sendLegacyMessage(player, "messages.group-dm-switched", "Now chatting in group: $name", "{group}" to name)
+                        } else {
+                            ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "You're not in this group")
+                        }
+                    }
+                }
+                subcommand("list-current") {
+                    playerExecutor { player, _ ->
+                        val groupName = ctx.groupManager.playerGroups[player.uniqueId]
+                        if (groupName == null) {
+                            ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "Not in a group")
+                            return@playerExecutor
+                        }
+
+                        val group = ctx.groupManager.groups[groupName]!!
+                        ctx.formatter.sendLegacyMessage(player, "messages.group-members", "Group: ${group.name}")
+
+                        val owner = Bukkit.getPlayer(group.owner)?.name ?: "Offline"
+                        ctx.formatter.sendLegacyMessage(player, "messages.group-owner", "Owner: $owner")
+
+                        val members = group.members
+                            .filter { it != group.owner }
+                            .mapNotNull { Bukkit.getPlayer(it)?.name }
+
+                        if (members.isEmpty()) {
+                            ctx.formatter.sendLegacyMessage(player, "messages.group-no-members", "No other members")
+                        } else {
+                            ctx.formatter.sendLegacyMessage(player, "messages.group-members-list", "Members:")
+                            members.forEach { member ->
+                                ctx.formatter.sendLegacyMessage(player, "messages.group-member", "- $member")
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun handleDMStart(ctx: CommandRegistrarContext, player: Player, target: Player) {

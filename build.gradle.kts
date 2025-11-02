@@ -1,5 +1,7 @@
 import java.text.SimpleDateFormat
 import java.util.*
+import org.gradle.api.JavaVersion
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     id("com.gradleup.shadow") version "8.3.6"
@@ -63,31 +65,48 @@ repositories {
     }
 }
 
+kotlin {
+    jvmToolchain(21)
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
+val commandapiVersion = "11.0.0"
+val minecraftVersion = "1.21.8"
+
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
-    compileOnly("dev.jorel:commandapi-annotations:11.0.0")
-    compileOnly("dev.jorel:commandapi-core:11.0.0")
-    compileOnly("dev.jorel:commandapi-plugin:11.0.0")
-    compileOnly("dev.jorel:commandapi-preprocessor:11.0.0")
-    compileOnly("dev.jorel:commandapi-paper-core:11.0.0")
+    compileOnly("dev.jorel:commandapi-paper-shade:${commandapiVersion}")
+    compileOnly("dev.jorel:commandapi-kotlin-paper:${commandapiVersion}")
+    compileOnly("dev.jorel:commandapi-paper-core:${commandapiVersion}")
+    compileOnly("io.papermc.paper:paper-api:${minecraftVersion}-R0.1-SNAPSHOT")
+
+    // Kotlin
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
+
+    // Wrapper libraries around Paper API features
     compileOnly("org.winlogon:retrohue:0.1.1")
     compileOnly("org.winlogon:asynccraftr:0.1.0")
     
+    // MockBukkit & JUnit Jupiter
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.0")
+    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.83.1")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
+    testImplementation("org.mockito:mockito-core:5.20.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.0")
 
-    testImplementation("org.mockito:mockito-core:5.20.0")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
-    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.83.1")
-    testImplementation("dev.jorel:commandapi-paper-test-toolkit:11.0.0")
-    testImplementation("org.winlogon:retrohue:0.1.1")
+    // Paper API and other dependencies
+    testImplementation("io.papermc.paper:paper-api:${minecraftVersion}-R0.1-SNAPSHOT")
     testImplementation("org.winlogon:asynccraftr:0.1.0")
+    testImplementation("org.winlogon:retrohue:0.1.1")
 
-    testImplementation("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
-    testRuntimeOnly("org.winlogon:retrohue:0.1.1")
-    testRuntimeOnly("org.winlogon:asynccraftr:0.1.0")
-    testRuntimeOnly("dev.jorel:commandapi-core:11.0.0")
-    testRuntimeOnly("dev.jorel:commandapi-paper-core:11.0.0")
+    // CommandAPI testing
+    testImplementation("dev.jorel:commandapi-paper-test-toolkit:${commandapiVersion}")
+    testRuntimeOnly("dev.jorel:commandapi-core:${commandapiVersion}")
+    testRuntimeOnly("dev.jorel:commandapi-paper-core:${commandapiVersion}")
 }
 
 tasks.test {
