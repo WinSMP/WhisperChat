@@ -10,9 +10,3 @@ folia-supported: true
 permissions:
   whisperchat.admin:
     default: op
-dependencies:
-  server:
-    CommandAPI:
-      load: BEFORE
-      required: true
-      join-classpath: true

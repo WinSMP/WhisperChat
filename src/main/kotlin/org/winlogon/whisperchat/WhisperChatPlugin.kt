@@ -7,6 +7,7 @@ import dev.jorel.commandapi.arguments.GreedyStringArgument
 import dev.jorel.commandapi.arguments.StringArgument
 import dev.jorel.commandapi.arguments.ArgumentSuggestions
 import dev.jorel.commandapi.CommandAPIConfig
+import dev.jorel.commandapi.CommandAPIPaperConfig
 
 import org.bukkit.Bukkit
 import org.bukkit.configuration.file.FileConfiguration
@@ -44,7 +45,7 @@ open class WhisperChatPlugin : JavaPlugin() {
     private lateinit var formatter: MessageFormatter
     private lateinit var groupManager: GroupManager
     private lateinit var logger: Logger
-    private lateinit var context: CommandRegistrarContext // Declare as lateinit
+    private lateinit var context: CommandRegistrarContext
 
     private val dmSessionManager = DMSessionManager()
     private val miniMessage: MiniMessage = MiniMessage.miniMessage()
@@ -56,7 +57,7 @@ open class WhisperChatPlugin : JavaPlugin() {
         config = getConfig()
         logger = getLogger()
 
-        // CommandAPI.onLoad(CommandAPIConfig.setUsePluginNamespace(true))
+        CommandAPI.onLoad(CommandAPIPaperConfig(this).verboseOutput(true))
     }
 
     override fun onEnable() {
@@ -65,7 +66,7 @@ open class WhisperChatPlugin : JavaPlugin() {
         setupSocialSpyLogger()
         formatter = MessageFormatter(dmSessionManager.lastInteraction, config, socialSpyLogger, miniMessage)
         groupManager = GroupManager(config, this)
-        context = CommandRegistrarContext(this, dmSessionManager, groupManager, formatter) // Initialize here
+        context = CommandRegistrarContext(this, dmSessionManager, groupManager, formatter)
         
         server.pluginManager.registerEvents(
             DirectMessageHandler(
