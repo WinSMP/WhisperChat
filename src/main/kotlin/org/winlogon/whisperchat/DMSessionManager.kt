@@ -20,6 +20,6 @@ class DMSessionManager {
     }
 
     // Creates a sorted pair of UUIDs, based on the byte representation
-    private fun sortedPair(a: UUID, b: UUID) =
+    internal fun sortedPair(a: UUID, b: UUID) =
         if (a < b) Pair(a, b) else Pair(b, a)
 }
