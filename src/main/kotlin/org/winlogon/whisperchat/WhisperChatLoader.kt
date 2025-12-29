@@ -8,7 +8,7 @@ import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.graph.Dependency
 import org.eclipse.aether.repository.RemoteRepository
 
-const val commandapiVersion = "11.0.0"
+const val commandapiVersion = "11.1.0"
 
 class WhisperChatLoader : PluginLoader {
     override fun classloader(classpathBuilder: PluginClasspathBuilder) {

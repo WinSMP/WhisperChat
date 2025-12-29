@@ -4,15 +4,16 @@ import org.gradle.api.JavaVersion
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
-    id("com.gradleup.shadow") version "8.3.6"
-    kotlin("jvm") version "2.1.10"
+    id("com.gradleup.shadow") version "9.3.0"
+    kotlin("jvm") version "2.3.0"
 }
 
 group = "org.winlogon.whisperchat"
 
 fun getTime(): String {
-    val sdf = SimpleDateFormat("yyMMdd-HHmm")
-    sdf.timeZone = TimeZone.getTimeZone("UTC")
+    val sdf = SimpleDateFormat("yyyy-MM-dd'T'HHmmss'Z'").apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
     return sdf.format(Date()).toString()
 }
 
@@ -75,8 +76,8 @@ java {
     }
 }
 
-val commandapiVersion = "11.0.0"
-val minecraftVersion = "1.21.8"
+val commandapiVersion = "11.1.0"
+val minecraftVersion = "1.21.10"
 
 dependencies {
     compileOnly("dev.jorel:commandapi-paper-shade:${commandapiVersion}")
@@ -93,9 +94,9 @@ dependencies {
     
     // MockBukkit & JUnit Jupiter
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.0")
-    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.83.1")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
-    testImplementation("org.mockito:mockito-core:5.20.0")
+    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.98.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:6.1.0")
+    testImplementation("org.mockito:mockito-core:5.21.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.0")
 
     // Paper API and other dependencies
