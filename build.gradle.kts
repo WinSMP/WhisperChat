@@ -67,23 +67,20 @@ repositories {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 }
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
 }
 
-val commandapiVersion = "11.1.0"
-val minecraftVersion = "1.21.10"
-
 dependencies {
-    compileOnly("dev.jorel:commandapi-paper-shade:${commandapiVersion}")
-    compileOnly("dev.jorel:commandapi-kotlin-paper:${commandapiVersion}")
-    compileOnly("dev.jorel:commandapi-paper-core:${commandapiVersion}")
-    compileOnly("io.papermc.paper:paper-api:${minecraftVersion}-R0.1-SNAPSHOT")
+    compileOnly(libs.commandapi.paper.shade)
+    compileOnly(libs.commandapi.paper.core)
+    compileOnly(libs.commandapi.kotlin.paper)
+    compileOnly(libs.paper.api)
 
     // Kotlin
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
@@ -93,21 +90,21 @@ dependencies {
     compileOnly("org.winlogon:asynccraftr:0.1.0")
     
     // MockBukkit & JUnit Jupiter
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.0")
-    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.98.0")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:6.1.0")
-    testImplementation("org.mockito:mockito-core:5.21.0")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.0")
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.mockbukkit.test)
+    testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.mockito.core)
+    testRuntimeOnly(libs.junit.platform.launcher)
 
     // Paper API and other dependencies
-    testImplementation("io.papermc.paper:paper-api:${minecraftVersion}-R0.1-SNAPSHOT")
+    testImplementation(libs.paper.api)
     testImplementation("org.winlogon:asynccraftr:0.1.0")
     testImplementation("org.winlogon:retrohue:0.1.1")
 
     // CommandAPI testing
-    testImplementation("dev.jorel:commandapi-paper-test-toolkit:${commandapiVersion}")
-    testRuntimeOnly("dev.jorel:commandapi-core:${commandapiVersion}")
-    testRuntimeOnly("dev.jorel:commandapi-paper-core:${commandapiVersion}")
+    testImplementation(libs.commandapi.paper.test.toolkit)
+    testRuntimeOnly(libs.commandapi.core)
+    testRuntimeOnly(libs.commandapi.paper.core)
 }
 
 tasks.test {

@@ -4,7 +4,7 @@ main: '${PACKAGE}.WhisperChatPlugin'
 loader: '${PACKAGE}.WhisperChatLoader'
 authors: ['winlogon']
 website: 'https://github.com/WinSMP/WhisperChat'
-api-version: 1.21
+api-version: '26.1.2'
 description: 'Minimalist and no nonsense DM plugin.'
 folia-supported: true
 permissions:
