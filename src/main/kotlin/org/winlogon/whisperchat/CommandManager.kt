@@ -64,6 +64,13 @@ class CommandManager(val config: FileConfiguration, val logger: Logger) : Comman
                     handleDMLeave(ctx, player)
                 }
             }
+            subcommand("reply") {
+                greedyStringArgument("message")
+                playerExecutor { player, args ->
+                    val message = args["message"] as String
+                    handleDMReply(ctx, player, message)
+                }
+            }
             subcommand("help") {
                 playerExecutor { player, _ ->
                     sendHelp(ctx, player)
@@ -80,7 +87,7 @@ class CommandManager(val config: FileConfiguration, val logger: Logger) : Comman
             playerExecutor { player, args ->
                 val target = args["target"] as Player
                 val message = args["message"] as String
-                ctx.formatter.sendFormattedMessage(player, target, message, MessageType.WHISPER)
+                handleWhisper(ctx, player, target, message)
             }
         }
     }
@@ -215,7 +222,7 @@ class CommandManager(val config: FileConfiguration, val logger: Logger) : Comman
 
         ctx.dmSessionManager.apply {
             activeDMs[player.uniqueId] = ActiveConversation.PlayerTarget(target.uniqueId)
-            lastSenders[target.uniqueId] = player.uniqueId
+            lastDmSenders[target.uniqueId] = player.uniqueId
             updateLastInteraction(player, target)
         }
     
@@ -284,24 +291,71 @@ class CommandManager(val config: FileConfiguration, val logger: Logger) : Comman
         }
     }
 
+    private fun handleWhisper(ctx: CommandRegistrarContext, player: Player, target: Player, message: String) {
+        logger.fine("Handling whisper from ${player.name} to ${target.name}")
+        if (player == target) {
+            ctx.formatter.sendLegacyMessage(player, "messages.self-whisper-error", "You can't whisper to yourself!")
+            return
+        }
+
+        ctx.formatter.sendFormattedMessage(player, target, message, MessageType.WHISPER)
+
+        // Only the recipient gets a `/r` target. The sender deliberately does not, so
+        // `/r` cannot bounce back to a thread they just opened from someone else.
+        ctx.dmSessionManager.lastWhisperSenders[target.uniqueId] = player.uniqueId
+    }
+
     private fun handleReply(ctx: CommandRegistrarContext, player: Player, message: String) {
+        handleReplyGeneric(
+            ctx, player, message,
+            replyTargets = ctx.dmSessionManager.lastWhisperSenders,
+            messageType = MessageType.REPLY,
+            noTargetKey = "messages.no-reply-target",
+            noTargetFallback = "No one to reply to!",
+        )
+    }
+
+    private fun handleDMReply(ctx: CommandRegistrarContext, player: Player, message: String) {
+        handleReplyGeneric(
+            ctx, player, message,
+            replyTargets = ctx.dmSessionManager.lastDmSenders,
+            messageType = MessageType.DM,
+            noTargetKey = "messages.no-dm-reply-target",
+            noTargetFallback = "No DM to reply to!",
+        )
+    }
+
+    /**
+     * Shared reply body for `/r` and `/dm reply`.
+     *
+     * Looks up the player's reply target in the given map, resolves them, sends the formatted
+     * message, then makes the sender the recipient's reply target. Never touches activeDMs or
+     * dmSessions: replying must not start or redirect a conversation.
+     */
+    private fun handleReplyGeneric(
+        ctx: CommandRegistrarContext,
+        player: Player,
+        message: String,
+        replyTargets: MutableMap<UUID, UUID>,
+        messageType: MessageType,
+        noTargetKey: String,
+        noTargetFallback: String,
+    ) {
         logger.fine("Handling reply for ${player.name}")
-        val lastSenderId: UUID = ctx.dmSessionManager.lastSenders[player.uniqueId] ?: run {
-            ctx.formatter.sendLegacyMessage(player, "messages.no-reply-target", "No reply target found.")
+
+        val lastSenderId: UUID = replyTargets[player.uniqueId] ?: run {
+            ctx.formatter.sendLegacyMessage(player, noTargetKey, noTargetFallback)
             return
         }
-    
+
         val target = Bukkit.getPlayer(lastSenderId) ?: run {
-            ctx.dmSessionManager.lastSenders.remove(player.uniqueId)
-            ctx.formatter.sendLegacyMessage(player, "messages.target-offline", "Target is offline.")
+            replyTargets.remove(player.uniqueId)
+            ctx.formatter.sendLegacyMessage(player, "messages.target-offline", "That player is offline!")
             return
         }
-    
-        ctx.formatter.sendFormattedMessage(player, target, message, MessageType.REPLY)
-        ctx.dmSessionManager.apply {
-            lastSenders[target.uniqueId] = player.uniqueId
-            updateLastInteraction(player, target)
-        }
+
+        ctx.formatter.sendFormattedMessage(player, target, message, messageType)
+        replyTargets[target.uniqueId] = player.uniqueId
     }
 
     private fun sendHelp(ctx: CommandRegistrarContext, player: Player) {

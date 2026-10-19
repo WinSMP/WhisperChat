@@ -38,7 +38,7 @@ class DirectMessageListenerTest : BaseWhisperChatTest() {
 
     private lateinit var activeDMsMap: ConcurrentHashMap<UUID, ActiveConversation>
     private lateinit var dmSessionsMap: ConcurrentHashMap<UUID, MutableSet<UUID>>
-    private lateinit var lastSendersMap: ConcurrentHashMap<UUID, UUID>
+    private lateinit var lastDmSendersMap: ConcurrentHashMap<UUID, UUID>
     private lateinit var lastInteractionMap: ConcurrentHashMap<Pair<UUID, UUID>, Long>
 
     private val plainSerializer = PlainTextComponentSerializer.plainText()
@@ -49,12 +49,12 @@ class DirectMessageListenerTest : BaseWhisperChatTest() {
         dmSessionManager = mock()
         activeDMsMap = ConcurrentHashMap()
         dmSessionsMap = ConcurrentHashMap()
-        lastSendersMap = ConcurrentHashMap()
+        lastDmSendersMap = ConcurrentHashMap()
         lastInteractionMap = ConcurrentHashMap()
 
         whenever(dmSessionManager.activeDMs).thenReturn(activeDMsMap)
         whenever(dmSessionManager.dmSessions).thenReturn(dmSessionsMap)
-        whenever(dmSessionManager.lastSenders).thenReturn(lastSendersMap)
+        whenever(dmSessionManager.lastDmSenders).thenReturn(lastDmSendersMap)
         whenever(dmSessionManager.lastInteraction).thenReturn(lastInteractionMap)
 
         formatter = mock()

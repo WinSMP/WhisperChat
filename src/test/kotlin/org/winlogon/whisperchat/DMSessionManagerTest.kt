@@ -61,8 +61,9 @@ class DMSessionManagerTest : BaseWhisperChatTest() {
         dmSessionManager.dmSessions.computeIfAbsent(player1.uniqueId) { mutableSetOf() }.add(player3.uniqueId)
         dmSessionManager.dmSessions.computeIfAbsent(player2.uniqueId) { mutableSetOf() }.add(player1.uniqueId)
 
-        // Simulate player1 being the last sender for player2
-        dmSessionManager.lastSenders[player2.uniqueId] = player1.uniqueId
+        // Simulate player1 being the last whisper and DM sender for player2
+        dmSessionManager.lastWhisperSenders[player2.uniqueId] = player1.uniqueId
+        dmSessionManager.lastDmSenders[player2.uniqueId] = player1.uniqueId
 
         // Simulate last interaction between player1 and player2, and player1 and player3
         dmSessionManager.updateLastInteraction(player1, player2)
@@ -76,7 +77,8 @@ class DMSessionManagerTest : BaseWhisperChatTest() {
         assertTrue(dmSessionManager.dmSessions[player1.uniqueId]!!.contains(player3.uniqueId), "player1 should have a DM session with player3 initially")
         assertTrue(dmSessionManager.dmSessions.containsKey(player2.uniqueId), "player2 should have DM sessions initially")
         assertTrue(dmSessionManager.dmSessions[player2.uniqueId]!!.contains(player1.uniqueId), "player2 should have a DM session with player1 initially")
-        assertTrue(dmSessionManager.lastSenders.containsKey(player2.uniqueId), "player2 should have a last sender initially")
+        assertTrue(dmSessionManager.lastWhisperSenders.containsKey(player2.uniqueId), "player2 should have a whisper reply target initially")
+        assertTrue(dmSessionManager.lastDmSenders.containsKey(player2.uniqueId), "player2 should have a DM reply target initially")
         assertNotNull(dmSessionManager.lastInteraction[dmSessionManager.sortedPair(player1.uniqueId, player2.uniqueId)], "last interaction between player1 and player2 should exist initially")
         assertNotNull(dmSessionManager.lastInteraction[dmSessionManager.sortedPair(player1.uniqueId, player3.uniqueId)], "last interaction between player1 and player3 should exist initially")
 
@@ -86,13 +88,51 @@ class DMSessionManagerTest : BaseWhisperChatTest() {
         // Verify player1's data is cleared
         assertFalse(dmSessionManager.activeDMs.containsKey(player1.uniqueId), "player1 should not be in activeDMs after removal")
         assertFalse(dmSessionManager.dmSessions.containsKey(player1.uniqueId), "player1 should not have DM sessions after removal")
-        assertFalse(dmSessionManager.lastSenders.containsValue(player1.uniqueId), "player1 should not be a sender for anyone after removal")
-        assertFalse(dmSessionManager.lastSenders.containsKey(player1.uniqueId), "player1 should not have a last sender entry after removal")
+        assertFalse(dmSessionManager.lastWhisperSenders.containsValue(player1.uniqueId), "player1 should not be a whisper sender for anyone after removal")
+        assertFalse(dmSessionManager.lastWhisperSenders.containsKey(player1.uniqueId), "player1 should not have a whisper reply target after removal")
+        assertFalse(dmSessionManager.lastDmSenders.containsValue(player1.uniqueId), "player1 should not be a DM sender for anyone after removal")
+        assertFalse(dmSessionManager.lastDmSenders.containsKey(player1.uniqueId), "player1 should not have a DM reply target after removal")
         assertNull(dmSessionManager.lastInteraction[dmSessionManager.sortedPair(player1.uniqueId, player2.uniqueId)], "last interaction between player1 and player2 should be null after removal")
         assertNull(dmSessionManager.lastInteraction[dmSessionManager.sortedPair(player1.uniqueId, player3.uniqueId)], "last interaction between player1 and player3 should be null after removal")
 
         // Verify other players' data is updated correctly
         assertFalse(dmSessionManager.activeDMs.containsKey(player2.uniqueId), "player2's active DM with player1 should be removed")
         assertFalse(dmSessionManager.dmSessions[player2.uniqueId]!!.contains(player1.uniqueId), "player2's DM session with player1 should be removed")
+    }
+
+    @Test
+    fun `whisper and dm reply targets are tracked independently`() {
+        val alice = server.addPlayer()
+        val bob = server.addPlayer()
+        val trudy = server.addPlayer()
+
+        // Alice and Bob are talking in a DM session, so Bob's messages make Alice `/dm reply` to Bob
+        dmSessionManager.lastDmSenders[alice.uniqueId] = bob.uniqueId
+
+        // Eve then whispers Alice, which makes Eve Alice's `/r` target
+        dmSessionManager.lastWhisperSenders[alice.uniqueId] = trudy.uniqueId
+
+        // The two commands must not see each other's target, otherwise Eve's whisper
+        // would redirect a DM reply that was meant for Bob
+        assertEquals(bob.uniqueId, dmSessionManager.lastDmSenders[alice.uniqueId], "/dm reply should target Bob")
+        assertEquals(trudy.uniqueId, dmSessionManager.lastWhisperSenders[alice.uniqueId], "/r should target Eve")
+    }
+
+    @Test
+    fun `clearReplyTargets drops targets pointing across the expired pair`() {
+        val alice = server.addPlayer()
+        val bob = server.addPlayer()
+        val trudy = server.addPlayer()
+
+        dmSessionManager.lastWhisperSenders[bob.uniqueId] = alice.uniqueId
+        dmSessionManager.lastDmSenders[bob.uniqueId] = alice.uniqueId
+        // Alice started a newer whisper thread with Eve, which must survive Bob expiring
+        dmSessionManager.lastWhisperSenders[alice.uniqueId] = trudy.uniqueId
+
+        dmSessionManager.clearReplyTargets(alice.uniqueId, bob.uniqueId)
+
+        assertNull(dmSessionManager.lastWhisperSenders[bob.uniqueId], "Bob's whisper reply target should be cleared")
+        assertNull(dmSessionManager.lastDmSenders[bob.uniqueId], "Bob's DM reply target should be cleared")
+        assertEquals(trudy.uniqueId, dmSessionManager.lastWhisperSenders[alice.uniqueId], "Eve thread should be untouched")
     }
 }

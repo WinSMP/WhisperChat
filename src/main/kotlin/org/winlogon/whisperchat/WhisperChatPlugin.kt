@@ -80,7 +80,7 @@ open class WhisperChatPlugin : JavaPlugin() {
             this
         )
 
-        AsyncCraftr.runGlobalTaskTimer(this, Runnable {
+        AsyncCraftr.runGlobalTaskTimer(this, {
             groupManager.expireGroups()
         }, Duration.ofMinutes(1), Duration.ofMinutes(1))
         
@@ -127,7 +127,16 @@ open class WhisperChatPlugin : JavaPlugin() {
         expiredPairs.forEach { pair ->
             dmSessionManager.lastInteraction.remove(pair)
             val (a, b) = pair
-    
+
+            // lastInteraction also tracks plain whispers, so only tell the players about
+            // an expired *session* when one actually existed between them.
+            val hadSession = dmSessionManager.dmSessions[a]?.contains(b) == true ||
+                dmSessionManager.dmSessions[b]?.contains(a) == true
+
+            // A whisper can keep a reply target alive without ever being a session, so
+            // both reply maps are expired here to bound `/r` and `/dm reply` alike.
+            dmSessionManager.clearReplyTargets(a, b)
+
             dmSessionManager.dmSessions.computeIfPresent(a) { _, sessions -> 
                 sessions.apply { remove(b) } 
             }
@@ -146,6 +155,8 @@ open class WhisperChatPlugin : JavaPlugin() {
                     dmSessionManager.activeDMs.remove(b)
                 }
             }
+
+            if (!hadSession) return@forEach
     
             val parsedMessageTemplate = config.getString("messages.session-expired") 
                 ?: "Your DM session with {player} has expired due to inactivity."

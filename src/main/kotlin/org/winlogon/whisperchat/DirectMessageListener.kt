@@ -26,6 +26,25 @@ class DirectMessageHandler(
 ) : Listener {
     val plainSerializer = PlainTextComponentSerializer.plainText()
 
+    /**
+     * Handles the public-prefix escape hatch: if the message starts with the public prefix,
+     * the original chat event continues to public chat and this handler backs out.
+     * Returns true when the message was dispatched to public chat (caller should do nothing
+     * further); false when it stays private (caller should cancel the event and route it).
+     */
+    private fun maybeSendPublic(event: AsyncChatEvent, player: Player): Boolean {
+        val msg = plainSerializer.serialize(event.message())
+        val prefix = config.getString("public-prefix") ?: "!"
+
+        if (msg.startsWith(prefix) && msg.length > prefix.length && !msg[prefix.length].isWhitespace()) {
+            val newMessage = msg.substring(prefix.length).trim()
+            event.message(formatter.parseMessage(newMessage))
+            event.isCancelled = false
+            return true
+        }
+        return false
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     fun onChat(event: AsyncChatEvent) {
         logger.fine("Handling chat event for ${event.player.name}")
@@ -39,15 +58,7 @@ class DirectMessageHandler(
     }
 
     private fun handlePlayerDM(event: AsyncChatEvent, player: Player, targetId: UUID) {
-        val msg = plainSerializer.serialize(event.message())
-        val prefix = config.getString("public-prefix") ?: "!"
-
-        if (msg.startsWith(prefix) && msg.length > prefix.length && !msg[prefix.length].isWhitespace()) {
-            val newMessage = msg.substring(prefix.length).trim()
-            event.message(formatter.parseMessage(newMessage))
-            event.isCancelled = false
-            return
-        }
+        if (maybeSendPublic(event, player)) return
 
         event.isCancelled = true
 
@@ -74,8 +85,9 @@ class DirectMessageHandler(
                 return@Runnable
             }
 
+            val msg = plainSerializer.serialize(event.message())
             formatter.sendFormattedMessage(player, target, msg, MessageType.DM)
-            dmSessionManager.lastSenders[target.uniqueId] = player.uniqueId
+            dmSessionManager.lastDmSenders[target.uniqueId] = player.uniqueId
             dmSessionManager.updateLastInteraction(player, target)
         }
 
@@ -95,19 +107,12 @@ class DirectMessageHandler(
             return
         }
 
-        val msg = plainSerializer.serialize(event.message())
-        val prefix = config.getString("public-prefix") ?: "!"
-
-        if (msg.startsWith(prefix) && msg.length > prefix.length && !msg[prefix.length].isWhitespace()) {
-            val newMessage = msg.substring(prefix.length).trim()
-            event.message(formatter.parseMessage(newMessage))
-            event.isCancelled = false
-            return
-        }
+        if (maybeSendPublic(event, player)) return
 
         event.isCancelled = true
-    
+
         val runnable = Runnable {
+            val msg = plainSerializer.serialize(event.message())
             val groupMessageFormat = config.getString("formats.group-dm") ?:
                 "<gray>[<aqua>{group}</aqua>] <dark_aqua>{sender}</dark_aqua>:</gray> <white>{message}"
 

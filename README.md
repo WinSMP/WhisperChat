@@ -7,6 +7,7 @@ WhisperChat is a lightweight, configurable and intuitive plugin designed to for 
 - **DMs**, where messages in chat get redirected to the receiver. DMs expire after 30 minutes of inactivity.
   - **Group DMs** (which expire after 24 hours).
 - `/w` (aliases: `/msg`, `/tell`), `/r`, `/dm`.
+- **Separate reply scopes**: `/r` replies to the last whisper and `/dm reply` replies to the last DM, so an incoming whisper can never hijack a DM conversation you are already having.
 - **Social Spy**: see what people send each other in DMs (replicating vanilla behavior with commands).
 
 ## For Server Administrators
@@ -53,7 +54,8 @@ Here's a description of each configurable option:
     * `dm-list-item`: The format for each individual player listed in the active DM sessions.
     * `not-in-dm`: Message displayed when a player tries to perform a DM-related action but is not currently in an active DM session.
     * `dm-left`: Message confirming that a player has successfully left a DM session with a specific target.
-    * `no-reply-target`: Displayed when a player uses the reply command (`/r`) but there's no previous message to reply to.
+    * `no-reply-target`: Displayed when a player uses the reply command (`/r`) but there's no previous whisper to reply to.
+    * `no-dm-reply-target`: Displayed when a player uses `/dm reply` but there's no previous DM to reply to.
     * `target-offline`: Message indicating that the target player for a DM is currently offline.
     * `session-expired`: Informs a player that their DM session with another player has ended due to inactivity.
     * `group-deleted`: Message confirming a group DM has been deleted.
@@ -75,7 +77,7 @@ Here's a description of each configurable option:
 * `formats`: Defines how different types of messages (whispers, replies, direct messages, and group direct messages) are displayed.
     * `whisper`: Format for messages sent using `/w`, `/msg`, or `/tell`.
     * `reply`: Format for messages sent using `/r`.
-    * `dm`: Format for messages sent within a direct message session.
+    * `dm`: Format for messages sent within a direct message session, and for `/dm reply`.
     * `group-dm`: Format for messages sent within a group direct message session.
 
 * `socialspy`: Configures where social spy messages are logged. Valid options are `console` (logs to the server console) or `file` (logs to a dedicated file).
@@ -88,10 +90,12 @@ WhisperChat provides intuitive commands for private messaging. Here are the basi
 
 * `/msg <player> <message>` (aliases: `/w`, `/tell`): Sends a private message directly to a specific player.
     * Example: `/msg Notch Hello there!`
-* `/r <message>`: Replies to the last player who sent you a private message or to whom you last sent a private message. This is useful for quick follow-up conversations.
+* `/r <message>`: Replies to the last player who sent you a whisper, or to whom you last sent one. This is useful for quick follow-up conversations. Whisper replies expire after 30 minutes of inactivity.
     * Example: `/r I'm doing great, thanks!`
 * `/dm start <player>`: Initiates a new direct message session with the specified player. Once started, subsequent messages you type in chat (without a public prefix) will go directly to this player.
     * Example: `/dm start Herobrine`
+* `/dm reply <message>`: Replies to the last DM message without starting or switching a session, so your regular chat messages stay in whatever conversation you are currently in. Unlike `/dm start`, this never redirects your chat.
+    * Example: `/dm reply on my way`
 * `/dm switch <player>`: Changes your active direct message session to another player you've previously messaged. This allows you to quickly switch between ongoing private conversations.
     * Example: `/dm switch Steve`
 * `/dm list`: Displays a list of all players with whom you currently have active direct message sessions.

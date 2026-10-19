@@ -8,7 +8,15 @@ import java.util.logging.Logger
 class DMSessionManager {
     val activeDMs = ConcurrentHashMap<UUID, ActiveConversation>()
     val dmSessions = ConcurrentHashMap<UUID, MutableSet<UUID>>()
-    val lastSenders = ConcurrentHashMap<UUID, UUID>()
+
+    // Whisper reply targets, keyed by recipient. Used only by `/r`, which is scoped
+    // to one-off whispers and never mixes with DM threads.
+    val lastWhisperSenders = ConcurrentHashMap<UUID, UUID>()
+
+    // DM reply targets, keyed by recipient. Used only by `/dm reply`, which stays
+    // independent of sessions so a reply never starts or redirects a conversation.
+    val lastDmSenders = ConcurrentHashMap<UUID, UUID>()
+
     val lastInteraction = ConcurrentHashMap<Pair<UUID, UUID>, Long>()
 
     /**
@@ -22,6 +30,19 @@ class DMSessionManager {
     // Creates a sorted pair of UUIDs, based on the byte representation
     internal fun sortedPair(a: UUID, b: UUID) =
         if (a < b) Pair(a, b) else Pair(b, a)
+
+    /**
+     * Drops the whisper and DM reply targets that point across a pair whose inactivity
+     * window just elapsed, so an expired conversation can never be resumed with `/r`.
+     * Only clears entries that actually reference the other player, leaving any newer
+     * thread one of them started in the meantime intact.
+     */
+    fun clearReplyTargets(a: UUID, b: UUID) {
+        if (lastWhisperSenders[a] == b) lastWhisperSenders.remove(a)
+        if (lastWhisperSenders[b] == a) lastWhisperSenders.remove(b)
+        if (lastDmSenders[a] == b) lastDmSenders.remove(a)
+        if (lastDmSenders[b] == a) lastDmSenders.remove(b)
+    }
 
     /**
      * Removes all data associated with a player when they leave the server.
@@ -44,9 +65,13 @@ class DMSessionManager {
             sessions.remove(playerUUID)
         }
 
-        // Remove from lastSenders
-        lastSenders.remove(playerUUID)
-        lastSenders.entries.removeIf { (_, senderUUID) ->
+        // Remove from reply targets
+        lastWhisperSenders.remove(playerUUID)
+        lastWhisperSenders.entries.removeIf { (_, senderUUID) ->
+            senderUUID == playerUUID
+        }
+        lastDmSenders.remove(playerUUID)
+        lastDmSenders.entries.removeIf { (_, senderUUID) ->
             senderUUID == playerUUID
         }
 
