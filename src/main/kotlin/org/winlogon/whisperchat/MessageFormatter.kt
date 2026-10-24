@@ -61,7 +61,7 @@ class MessageFormatter(
         val applied = if (replacement != null) {
             var s = rawTemplate
             replacement.forEach { pair ->
-                s = rawTemplate.replace(pair.first, pair.second)
+                s = s.replace(pair.first, pair.second)
             }
             s
         } else {

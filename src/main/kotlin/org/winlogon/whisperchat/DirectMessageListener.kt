@@ -102,7 +102,7 @@ class DirectMessageHandler(
         }
 
         if (player.uniqueId !in group.members) {
-            formatter.sendLegacyMessage(player, "messages.not-in-group", "You're not in this group")
+            formatter.sendLegacyMessage(player, "messages.not-in-group", "You're not in this group", "{group}" to groupName)
             dmSessionManager.activeDMs.remove(player.uniqueId)
             return
         }
@@ -114,7 +114,7 @@ class DirectMessageHandler(
         val runnable = Runnable {
             val msg = plainSerializer.serialize(event.message())
             val groupMessageFormat = config.getString("formats.group-dm") ?:
-                "<gray>[<aqua>{group}</aqua>] <dark_aqua>{sender}</dark_aqua>:</gray> <white>{message}"
+                "&8[&3{group}&8]&7 &2{sender}&8: &f{message}"
 
             val formattedMessage = formatter.parseMessage(
                 groupMessageFormat,

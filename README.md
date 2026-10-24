@@ -34,6 +34,8 @@ Depending on the configuration entry, there might be revelant placeholders you m
 * `{target}`: The player who is the target of a direct message or DM session.
 * `{player}`: A player, often used in messages related to session status.
 * `{group}`: Denotes the name of a group in group-related messages.
+* `{owner}`: The owner of a group, in group listing messages.
+* `{member}`: A member listed in a group listing message.
 * `{sender}`: Represents the player who sent a message.
 * `{receiver}`: Represents the player who is receiving a message.
 * `{message}`: Represents the actual content of the message being sent.
@@ -49,6 +51,7 @@ Here's a description of each configurable option:
     * `dm-start`: Sent to the `{player}` when a new DM session is initiated with another player.
     * `dm-switch`: Sent to the `{player}` when they change their active DM session to talk to a different player.
     * `no-dm-sessions`: Displayed when a player attempts to list their DM sessions but has none active.
+    * `no-active-dms`: Displayed when a player's DM sessions exist but none of the targets are currently online.
     * `invalid-dm-target`: Shown when a player tries to switch to a DM session with someone they haven't previously messaged.
     * `dm-list-header`: The header message displayed before a list of active DM sessions.
     * `dm-list-item`: The format for each individual player listed in the active DM sessions.
@@ -68,11 +71,11 @@ Here's a description of each configurable option:
     * `cannot-delete-group`: Message indicating a player does not have permission or is not the owner to delete a group.
     * `cannot-join-group`: Message indicating a player cannot join a group (e.g., already in another group).
     * `cannot-leave-group-with-dm`: Message instructing players to use `/dm group leave` to exit group DMs.
-    * `group-members`: Header for listing group members.
-    * `group-owner`: Displays the owner of a group.
+    * `group-members`: Header for listing group members (`{group}`).
+    * `group-owner`: Displays the owner of a group (`{owner}`).
     * `group-no-members`: Message when a group has no other members besides the owner.
     * `group-members-list`: Header for the list of group members.
-    * `group-member`: Format for each individual member listed in a group.
+    * `group-member`: Format for each individual member listed in a group (`{member}`).
 
 * `formats`: Defines how different types of messages (whispers, replies, direct messages, and group direct messages) are displayed.
     * `whisper`: Format for messages sent using `/w`, `/msg`, or `/tell`.

@@ -118,10 +118,12 @@ class CommandManager(val config: FileConfiguration, val logger: Logger) : Comman
                 }
                 subcommand("leave") {
                     playerExecutor { player, _ ->
+                        // Capture the name before leaving: leaveGroup clears playerGroups.
+                        val groupName = ctx.groupManager.playerGroups[player.uniqueId]
                         if (ctx.groupManager.leaveGroup(player)) {
-                            ctx.formatter.sendLegacyMessage(player, "messages.group-left", "Left group")
+                            ctx.formatter.sendLegacyMessage(player, "messages.group-left", "Left group", "{group}" to (groupName ?: ""))
                         } else {
-                            ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "Not in a group")
+                            ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "Not in a group", "{group}" to (groupName ?: ""))
                         }
                     }
                 }
@@ -139,7 +141,7 @@ class CommandManager(val config: FileConfiguration, val logger: Logger) : Comman
                     playerExecutor { player, args ->
                         val name = args["name"] as String
                         if (ctx.groupManager.deleteGroup(name, player)) {
-                            ctx.formatter.sendLegacyMessage(player, "messages.group-deleted", "Deleted group $name")
+                            ctx.formatter.sendLegacyMessage(player, "messages.group-deleted", "Deleted group $name", "{group}" to name)
                         } else {
                             ctx.formatter.sendLegacyMessage(player, "messages.cannot-delete-group", "Cannot delete group")
                         }
@@ -173,7 +175,7 @@ class CommandManager(val config: FileConfiguration, val logger: Logger) : Comman
                             ctx.dmSessionManager.activeDMs[player.uniqueId] = ActiveConversation.GroupTarget(name)
                             ctx.formatter.sendLegacyMessage(player, "messages.group-dm-switched", "Now chatting in group: $name", "{group}" to name)
                         } else {
-                            ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "You're not in this group")
+                            ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "You're not in this group", "{group}" to name)
                         }
                     }
                 }
@@ -181,15 +183,17 @@ class CommandManager(val config: FileConfiguration, val logger: Logger) : Comman
                     playerExecutor { player, _ ->
                         val groupName = ctx.groupManager.playerGroups[player.uniqueId]
                         if (groupName == null) {
-                            ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "Not in a group")
+                            // No group in context here, so substitute {group} with an empty
+                            // string rather than letting it leak literally into the message.
+                            ctx.formatter.sendLegacyMessage(player, "messages.not-in-group", "Not in a group", "{group}" to "")
                             return@playerExecutor
                         }
 
                         val group = ctx.groupManager.groups[groupName]!!
-                        ctx.formatter.sendLegacyMessage(player, "messages.group-members", "Group: ${group.name}")
+                        ctx.formatter.sendLegacyMessage(player, "messages.group-members", "Group: ${group.name}", "{group}" to group.name)
 
                         val owner = Bukkit.getPlayer(group.owner)?.name ?: "Offline"
-                        ctx.formatter.sendLegacyMessage(player, "messages.group-owner", "Owner: $owner")
+                        ctx.formatter.sendLegacyMessage(player, "messages.group-owner", "Owner: $owner", "{owner}" to owner)
 
                         val members = group.members
                             .filter { it != group.owner }
@@ -200,7 +204,7 @@ class CommandManager(val config: FileConfiguration, val logger: Logger) : Comman
                         } else {
                             ctx.formatter.sendLegacyMessage(player, "messages.group-members-list", "Members:")
                             members.forEach { member ->
-                                ctx.formatter.sendLegacyMessage(player, "messages.group-member", "- $member")
+                                ctx.formatter.sendLegacyMessage(player, "messages.group-member", "- $member", "{member}" to member)
                             }
                         }
                     }

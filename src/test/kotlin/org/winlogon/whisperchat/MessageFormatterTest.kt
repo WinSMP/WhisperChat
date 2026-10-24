@@ -105,6 +105,22 @@ class MessageFormatterTest : BaseWhisperChatTest() {
     }
 
     @Test
+    fun `sendLegacyMsg replaces every placeholder, not just the last one`() {
+        val player = server.addPlayer("TestPlayer")
+        `when`(config.getString("test.legacy.multi")).thenReturn("&aHello &b{first}&a, meet &b{second}!")
+
+        messageFormatter.sendLegacyMsg(
+            player,
+            "test.legacy.multi",
+            "&cFallback",
+            listOf(Pair("{first}", "Alice"), Pair("{second}", "Bob"))
+        )
+
+        val expectedComponent = formatter.convertToComponent("&aHello &bAlice&a, meet &bBob!", '&')
+        assertEquals(expectedComponent, formatter.convertToComponent(player.nextMessage() ?: "", '§'))
+    }
+
+    @Test
     fun `sendLegacyMsg sends fallback message if key not found`() {
         val player = server.addPlayer("TestPlayer")
 
